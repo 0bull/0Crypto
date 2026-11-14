@@ -39,9 +39,13 @@ Set up in two minutes. Customers see their payment, not your balance.
 
 ## What your customer sees
 
-<img src=".github/assets/checkout.png" alt="0Crypto checkout: amount due and a coin picker" width="420" align="right">
-
 A quiet checkout page with the amount, the coins you accept and a QR code. No sign-up and no tracking. Every invoice gets its own address, so a customer who looks up their payment on a block explorer sees their payment, not your balance.
+
+<div align="center">
+<img src=".github/assets/checkout.png" alt="0Crypto checkout: amount due and a coin picker" width="460">
+</div>
+
+The trail stops before it reaches you:
 
 ```mermaid
 flowchart LR
@@ -50,8 +54,6 @@ flowchart LR
   H -.->|no on-chain link| Y[You]
   A -->|watch mode| Y
 ```
-
-<br clear="right">
 
 ## Quick start
 
