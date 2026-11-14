@@ -45,15 +45,9 @@ A quiet checkout page with the amount, the coins you accept and a QR code. No si
 <img src=".github/assets/checkout.png" alt="0Crypto checkout: amount due and a coin picker" width="460">
 </div>
 
-The trail stops before it reaches you:
+With privacy routing on, each payment lands on a fresh address and passes through a private hop before it reaches you, which breaks the on-chain link between your customer and your wallet.
 
-```mermaid
-flowchart LR
-  C[Customer] -->|pays| A[Fresh address<br/>new for every invoice]
-  A -->|routed mode| H[Private hop<br/>Railgun or Monero]
-  H -.->|no on-chain link| Y[You]
-  A -->|watch mode| Y
-```
+<img src=".github/assets/trail.png" alt="Customer, fresh address, private hop, you" width="100%">
 
 ## Quick start
 
