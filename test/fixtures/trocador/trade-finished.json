@@ -1,0 +1,12 @@
+{
+  "_ASSUMPTION": "built from docs, not captured live",
+  "trade_id": "TRADE789xyz",
+  "provider": "ProviderA",
+  "fixed": "True",
+  "status": "finished",
+  "amount_from": 0.001,
+  "amount_to": 0.2511,
+  "id_provider": "PROV-555",
+  "quotes": { "support": "https://support.provider-a.example/t/PROV-555", "expiresAt": "2026-11-13T10:30:00Z" },
+  "details": { "hashout": "ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12" }
+}

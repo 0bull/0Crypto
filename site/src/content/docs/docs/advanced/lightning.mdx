@@ -1,0 +1,45 @@
+---
+title: Accept Lightning
+description: Take Bitcoin over Lightning through your own wallet, with a connection that can only receive.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+**Lightning** is a fast way to pay in Bitcoin. 0Crypto takes Lightning payments through a wallet you already run with a hosted provider such as Alby Hub or Coinos. It connects with **Nostr Wallet Connect** (NWC), a standard way for an app to ask a wallet for invoices.
+
+The money lands in your wallet and stays there. 0Crypto never sweeps, routes or refunds Lightning payments, and it never pays anything. It cannot be routed through privacy routing either.
+
+## Connect your wallet
+
+<Steps>
+
+1. In your Lightning wallet create a new NWC connection. Give it **receive-only** permissions: the ability to create invoices (`make_invoice`), look them up (`lookup_invoice`) and read basic info (`get_info`). Nothing that can send. Menu names can differ by wallet.
+
+2. Copy the connection string. It starts with `nostr+walletconnect://`. Treat it as a secret.
+
+3. In the 0Crypto folder on your computer run `npx wrangler secret put NWC_URI` and paste the string. Or add it as a secret named `NWC_URI` in the Cloudflare dashboard under Variables and Secrets.
+
+4. In your admin open **Settings**. In the **Coins** box tick **BTC on Lightning**, then press **Save wallets and coins** and confirm with your passkey. The box stays grey until the `NWC_URI` secret is set.
+
+</Steps>
+
+## Why receive-only matters
+
+The connection string works like a key. If it leaks, someone with a receive-only connection can see and create invoices but cannot take your money. A connection that can spend could be drained. 0Crypto only ever uses the three receiving actions. It checks the connection before the first invoice and every 24 hours:
+
+- If it cannot create and look up invoices, Lightning is left out of checkout and your Overview shows a `lightning.config_error` alert.
+- If it also allows spending, Lightning still works, but a `lightning.spend_permission` alert asks you to swap it for a receive-only one. Do that.
+
+## How a payment goes
+
+The customer picks Lightning and sees a QR code with a countdown of 20 minutes. When it runs out, a **New invoice** button appears. 0Crypto asks your wallet whether it was paid, and credits the invoice only when the wallet confirms the exact amount.
+
+Lightning invoices have a fixed amount, so they cannot be underpaid. If a customer pays twice (an old and a new invoice), the invoice shows as overpaid. There are no Lightning refunds in 0Crypto, so send the difference back from your wallet.
+
+## Try it first
+
+Create a $1 test invoice, pick Lightning and pay it from a different wallet. It should show as paid within about 30 seconds.
+
+:::tip[You should now see]
+Lightning appears as a choice at checkout, with no `lightning.config_error` or `lightning.spend_permission` alert on your Overview, and your $1 test invoice turns paid.
+:::

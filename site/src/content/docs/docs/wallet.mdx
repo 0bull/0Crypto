@@ -1,0 +1,66 @@
+---
+title: Add your wallet
+description: Paste your wallet's public key into 0Crypto and check the first address matches.
+---
+
+{/* verified 2026-11: sparrowwallet.com/docs/quick-start.html (keystore xpub shown on the Settings screen); bluewallet.io/docs/wallet-details/ and bluewallet.io/watch-only/ (Wallet details, Show Wallet XPUB); Electrum Wallet > Information (Master Public Key) per blockonomics.freshdesk.com/support/solutions/articles/33000293512-electrum-wallet-guide-download-restore-faqs and intercom.help/blockpit/en/articles/12137005. The path to the first receive address was not confirmed from an official page for any wallet, so those steps are described in general terms. */}
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+0Crypto needs one thing from your wallet: its **extended public key**. This is a long text starting with `xpub` or `zpub` (Litecoin uses `Ltub`, Dogecoin `dgub`). With it, 0Crypto makes a new receiving address for every customer. It cannot spend your coins, and your seed phrase never leaves your wallet.
+
+:::danger
+Never paste your seed phrase, recovery words or a private key (`xprv`, `zprv`). 0Crypto never asks for them in watch mode.
+:::
+
+## Copy the key from your wallet
+
+<Tabs>
+<TabItem label="Sparrow">
+Open your wallet in Sparrow, go to the **Settings** tab and look at the keystore section. The key is in the **xpub** field. Copy it.
+
+To check the first address, open the **Addresses** tab and look at the first receive address in the list (the one at the top, index 0). In a brand-new wallet the **Receive** tab shows that same address.
+
+Menu names can differ by version.
+</TabItem>
+<TabItem label="Electrum">
+Open the **Wallet** menu and choose **Information**. The key is shown as **Master Public Key**. Older versions call the menu item **Master Public Keys**. It may start with `zpub` for a native SegWit wallet. Copy it.
+
+To check the first address, open the **Addresses** tab (in most versions it can be turned on under the **View** menu, if you do not see it) and look at the first receive address. In a brand-new wallet the **Receive** tab shows that same address.
+
+Menu names can differ by version.
+</TabItem>
+<TabItem label="BlueWallet">
+Open your wallet, then open its **Wallet details** from the top right corner. Choose **Show Wallet XPUB**. For a native SegWit wallet this is a `zpub`. Copy it.
+
+To check the first address, press **Receive**. In a brand-new wallet that is normally the first address. If the wallet has been used, it may show a later unused address, and you may need to look in the wallet's address list instead, if your version has one.
+
+Menu names can differ by version.
+</TabItem>
+</Tabs>
+
+If your wallet is not listed, search its help for "xpub", "zpub" or "extended public key", and for how to show the first receive address.
+
+## Paste it into 0Crypto
+
+<Steps>
+
+1. In the setup wizard, step **Your shop**, enter your shop name and press **Save and continue**.
+
+2. In **Coins**, tick **BTC on Bitcoin** (or **LTC on Litecoin**), then paste the key into the box called **Bitcoin account xpub** (or **Litecoin account xpub**). Press **Save wallets and coins** and confirm with your passkey.
+
+3. 0Crypto shows a line that starts "First receive address:", with **the first receive address** (index 0) of that key. Compare it with the first address in your wallet's address list, at the start and at the end. A wallet's Receive screen shows the next unused address on a used wallet, so use the address list, not the Receive screen.
+
+4. If they match, press **Continue**. If they do not match, stop and do not continue. Check that you copied the key from the right account and the right key type, paste it again and save again. The only reason the first address would differ on purpose is a start index: if you set one for that coin, 0Crypto begins at a later address. You set it under **Settings**, in the **Wallets** box, in the field called **Start index** ("The first address index to use (default 0)"). Leave it empty for a new wallet.
+
+</Steps>
+
+:::caution
+This check matters. A wrong account or address type means customers pay addresses that you cannot see or spend from. If the addresses do not match and you cannot explain why, stop. Once the gateway has handed out its first address for a coin, that coin's wallet is locked and the page says "This wallet has handed out addresses, so it cannot be changed." So check before you take any payment, including the test invoice.
+:::
+
+Dogecoin needs one more box, **Blockbook URL** ("Required for Dogecoin"), and a `dgub` key. If your Blockbook endpoint requires an API key, set it as the secret `DOGE_API_KEY`. Optionally, the secret `COINGECKO_KEY` adds CoinGecko as a price source for currencies Kraken lacks. Both are listed in `.dev.vars.example` in the repository. Chains that need routed mode (Ethereum, Tron, Solana) appear greyed out with an "Advanced: see docs" link. Skip them for now.
+
+:::tip[You should now see]
+The "First receive address:" line in 0Crypto is exactly the same as the first address in your wallet, and the **Coins** step shows "Wallets and coins saved." with a **Continue** button.
+:::

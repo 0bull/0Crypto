@@ -1,0 +1,13 @@
+{
+  "name": "railgun-golden",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Node-only oracle: generates test/fixtures/railgun/golden.json from the real Railgun engine. Not part of the root workspace.",
+  "engines": { "node": ">=20" },
+  "scripts": { "gen": "node gen.mjs > ../../test/fixtures/railgun/golden.json" },
+  "dependencies": {
+    "@railgun-community/engine": "9.9.1",
+    "@railgun-community/shared-models": "8.2.3"
+  }
+}

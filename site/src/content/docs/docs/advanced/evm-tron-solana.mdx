@@ -1,0 +1,76 @@
+---
+title: Ethereum, Tron and Solana
+description: What each chain needs, what to keep funded, and how to withdraw.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Read [Routed mode and your seed phrase](/docs/advanced/routed-mode/) first. These chains need it. Settings that grant access (provider keys) are secrets. Add them with `npx wrangler secret put NAME`, or under Variables and Secrets in the Cloudflare dashboard, then tick the coins in your admin. Menu names can differ by version.
+
+## What the gateway does with a deposit
+
+Every customer gets their own deposit address. Once the payment is confirmed, the gateway **sweeps** the money to one **hot wallet** per chain family (Ethereum chains share one, Tron has one, Solana has one). A hot wallet is an ordinary wallet that the gateway can spend from. It also pays the fees. Your admin's Wallets page shows each hot wallet and its balance.
+
+## Ethereum and its tokens
+
+Supported: ETH and tokens such as USDC, USDT and DAI on Ethereum, Base, Arbitrum, Polygon and BNB Chain.
+
+<Steps>
+
+1. Get a connection address (an "RPC URL") from a provider such as Alchemy, Infura or PublicNode. It must be able to read older blockchain history, because payments are confirmed by looking at the finalized block. Add it as a secret named `EVM_RPC_ETH`, `EVM_RPC_BASE`, `EVM_RPC_ARB`, `EVM_RPC_POLYGON` or `EVM_RPC_BSC`. You can list backups separated by commas.
+
+2. Send a little of the chain's own coin (ETH, POL or BNB) to the hot wallet on every chain you enable. It pays the sweeps and the next step.
+
+3. Deploy the **factory** once per chain. This is a small contract that creates the deposit addresses. In a terminal, in the 0Crypto folder, first try a dry run, which sends nothing and prints the hot wallet: `npm run deploy:factory -- --chain base --rpc https://... --dry-run`. Feed it the seed on standard input from a password manager, never typed on the command line. The repository's deployment notes show how. Then run it again without `--dry-run`. It costs about 620,000 gas. Running it twice is safe.
+
+4. Compare the hot wallet it prints with the one on the Wallets page. They must match.
+
+</Steps>
+
+Until the factory exists, that chain's coins are hidden from checkout, because a payment there could be received but not swept.
+
+Good to know:
+
+- **Wrong chain.** The gateway only watches the chain the customer chose. Funds sent to the same address on a different Ethereum chain are not noticed. Open the invoice and use **Recover deposit** to move them to your hot wallet. Never use it on a payment that is still waiting.
+- **Ethereum mainnet** only sweeps a batch worth $500 or more, or one whose oldest payment is over 7 days old, and never when gas would cost more than 5% of it.
+- **Stuck sweeps** show on your Overview with a **Mark sweep failed** button. Check a block explorer first.
+
+## Tron (USDT only)
+
+Only **USDT on Tron** is accepted. TRX sent to a deposit address is not recovered by the gateway. It stays at the address, and you can move it by hand with your seed.
+
+You need:
+
+- A TronGrid key as secret `TRONGRID_API_KEY`.
+- TRX in the Tron hot wallet: at least 2 TRX so it can send a top-up (each top-up sends 0.5 TRX to a deposit address that needs it), and at least 57 TRX if you use privacy routing.
+- A **TronSave** account with prepaid balance and its key as secret `TRONSAVE_API_KEY`. The gateway rents "energy" from TronSave for each USDT sweep. The prepaid balance pays for it, not the hot wallet. A price above 90 sun per unit is refused. Without this key, Tron payments are seen and credited, but no sweep starts.
+
+To use your own TronGrid-compatible node instead of the default, set the optional `TRON_API_URL` (an https address). See `.dev.vars.example` in the repository.
+
+A fresh Tron deposit usually takes three or four sweep rounds, 45 minutes to an hour, to reach the hot wallet.
+
+## Solana
+
+Supported: SOL and USDC on Solana.
+
+You need:
+
+- A Solana connection address as secret `SOLANA_RPC_URL` (https, backups separated by commas).
+- SOL in the Solana hot wallet. It pays every sweep, keeps 0.001 SOL in reserve, and pays about 0.002 SOL once to create its USDC account. With privacy routing, keep about 0.05 SOL.
+- A wallet that accepts a **custom derivation path** if you ever withdraw by hand, because the Solana hot wallet is not one of the usual accounts. Compare the address it shows with the one on the Wallets page before sending anything.
+
+## Keep them funded
+
+An empty hot wallet is the most common reason for stuck sweeps. A `sweep.insufficient_gas` alert appears at the top of your Overview. Top up the hot wallet it names.
+
+## Withdrawing
+
+Import the seed phrase into a wallet that lets you choose the derivation path, and use the hot wallet's path. Leave enough gas behind for pending sweeps, and do not withdraw while a sweep is pending. Without privacy routing there is no cap on what the hot wallet holds, so withdraw regularly.
+
+## Trust your providers
+
+Your RPC, TronGrid, TronSave and Solana providers are trusted for what they report. A lying provider could make a payment look paid or stall sweeps. It cannot redirect your funds, because every transaction is checked before it is signed, and a mismatch raises a `sweep.tx_mismatch` alert. Treat that alert as a security event. Use providers you trust, with keys you can rotate.
+
+:::tip[You should now see]
+On the Wallets page, each chain you set up shows as ready, with its hot wallet address and a balance. For Ethereum chains it also shows that the factory is deployed. A $1 test invoice offers the new coin at checkout.
+:::

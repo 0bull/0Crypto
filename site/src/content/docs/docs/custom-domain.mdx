@@ -1,0 +1,49 @@
+---
+title: Use your own domain
+description: Put the gateway on your own address, like pay.yourshop.com, and sign in again with a new passkey.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+By default your gateway lives at an address like `0crypto.your-name.workers.dev`. You can move it to your own domain. Before you start, know this: a passkey belongs to one domain. After the move your old passkeys will not work on the new address, so you register a new one. The steps below make that painless.
+
+## Before you start
+
+- Your domain must already be added to the same Cloudflare account.
+- Checkout links use the address stored in your gateway. They keep pointing at the old address until you finish step 5.
+- If you ever typed an address into `PUBLIC_URL` in your copy's `wrangler.jsonc`, change it to the new address first. While it is set there, the recovery page refuses any other address and says "PUBLIC_URL is set by a Wrangler var". A gateway made with the Deploy button leaves it empty.
+
+## Move the gateway
+
+<Steps>
+
+1. In the Cloudflare dashboard go to Workers & Pages, open **0crypto**, then Settings, Domains & Routes. Choose to add a custom domain and enter the one you want, such as `pay.yourshop.com`. Cloudflare sets up the DNS record and certificate for you. Menu names can differ by version.
+
+2. Wait until the domain shows as active, then open `https://pay.yourshop.com/admin`.
+
+3. On the sign-in page choose **Lost your passkey or moved to a new domain?**
+
+4. The page asks for a recovery code. Get it the same way as the setup code: Cloudflare dashboard, Workers & Pages, **0crypto**, Logs, or run `npx wrangler tail`. The line starts with `0crypto recovery code:`. See [Find your setup code](/docs/setup-code/). Press **Print a new code** if you need one.
+
+5. Type the 6 words. The page shows a box that says "This will move your gateway to https://pay.yourshop.com". Tick it, press **Create passkey**, then confirm when your device asks.
+
+6. Add a second passkey as a backup on the Passkeys page. Then remove the passkey for the old address.
+
+</Steps>
+
+## Lost your passkey or moved to a new domain?
+
+It is the same flow in both cases. Use it when you lost the device that held your passkey, or when your gateway has a new address. It only accepts a code from your Worker's logs, so only someone with access to your Cloudflare account can use it. This also means that anyone who can read your logs can recover your gateway, so keep your Cloudflare account safe.
+
+Be aware of what it does:
+
+- It signs out **every** device, including any open admin tab and any point-of-sale tablet (the tablet needs its PIN again).
+- It raises an alert in your admin so you notice.
+- It keeps your existing passkeys listed so you can remove the ones you no longer trust.
+- It moves your gateway to the address you used. Anything that stores your gateway address, such as the Gateway URL in the WooCommerce plugin, needs the new address.
+
+The optional `ADMIN_SETUP_CODE` secret is not accepted here. It only works for the very first claim. You can also do this only on a real domain name. Passkeys cannot use an IP address.
+
+:::tip[You should now see]
+Your admin loads on your own domain, and you are signed in with a passkey made there. The Settings page shows your new address, and a test invoice has a checkout link that starts with it.
+:::

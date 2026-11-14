@@ -1,0 +1,65 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "0crypto",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "d1_databases": [
+    { "binding": "DB", "database_name": "0crypto", "migrations_dir": "migrations" }
+  ],
+  "kv_namespaces": [{ "binding": "KV" }],
+  "queues": {
+    "producers": [{ "binding": "WEBHOOKS", "queue": "0crypto-webhooks" }],
+    "consumers": [
+      { "queue": "0crypto-webhooks", "dead_letter_queue": "0crypto-webhooks-dlq", "max_retries": 20 },
+      { "queue": "0crypto-webhooks-dlq", "max_retries": 5 }
+    ]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "WATCHER", "class_name": "PaymentWatcher" }]
+  },
+  "exports": {
+    "PaymentWatcher": { "type": "durable-object", "storage": "sqlite" }
+  },
+  "assets": { "directory": "public", "binding": "ASSETS", "run_worker_first": ["/", "/healthz", "/admin", "/admin/*", "/api/*", "/pos", "/pos/*", "/i/*", "/l/*"] },
+  // Plain settings (not secrets). Optional secrets (MASTER_SEED for routed mode, API keys, RPC URLs, NWC_URI...) are set with
+  // `wrangler secret put`; see .dev.vars.example for the full list and docs/deploy.md for the runbook. Test copy: test/wrangler.test.jsonc.
+  "vars": {
+    // Public base URL of this Worker. Empty: set automatically by the first claim.
+    "PUBLIC_URL": "",
+    // Comma-separated asset ids offered at checkout, e.g. btc:btc,ltc:ltc,base:usdc,ln:btc (see .dev.vars.example).
+    "ENABLED_ASSETS": "btc:btc,ltc:ltc",
+    // Shown on checkout pages. Empty = none.
+    "MERCHANT_NAME": "",
+    // Your server's endpoint for signed webhooks. Empty = no webhooks.
+    "WEBHOOK_URL": "",
+    // Blockbook endpoint, required to enable Dogecoin. Empty = Dogecoin disabled.
+    "DOGE_BLOCKBOOK_URL": "",
+    // Privacy routing: your Railgun 0zk... address, where EVM funds are shielded. Empty = no EVM routing.
+    "RAILGUN_0ZK_ADDRESS": "",
+    // Railgun master switch: "1" only after the live spike in docs/railgun-spike.md. Empty = shielding refused.
+    "RAILGUN_GOLDEN_OK": "",
+    // EVM chains whose own Railgun spike passed, comma-separated (eth,base,arb,polygon,bsc). Shielding happens only there.
+    "RAILGUN_GOLDEN_OK_CHAINS": "",
+    // Privacy routing: your Monero address (4... or 8...) where Trocador swaps are paid. Empty = no swaps.
+    "XMR_ADDRESS": "",
+    // Trocador master switch: "1" only after the live spike in docs/trocador-spike.md. Empty = trades refused.
+    "TROCADOR_LIVE_OK": "",
+    // Worst Trocador provider KYC rating accepted, A (no KYC) to D (may hold funds).
+    "TROCADOR_MIN_KYC": "A",
+    // Minimum batch worth, in USD, before routing schedules a batch.
+    "ROUTE_MIN_BATCH_USD": "200",
+    // Shortest random delay before a scheduled batch runs, in hours.
+    "ROUTE_DELAY_MIN_H": "2",
+    // Longest random delay before a scheduled batch runs, in hours.
+    "ROUTE_DELAY_MAX_H": "24",
+    // A hot-wallet balance worth this many USD (per asset per chain) is routed at once.
+    "HOT_CAP_USD": "5000"
+  },
+  "observability": { "enabled": true, "logs": { "enabled": true, "invocation_logs": true, "head_sampling_rate": 1 } },
+  "upload_source_maps": true,
+  "minify": true,
+  "triggers": { "crons": ["* * * * *", "*/15 * * * *", "5-59/15 * * * *", "0 * * * *", "30 * * * *"] },
+  "ratelimits": [
+    { "name": "API_RATE", "namespace_id": "8317", "simple": { "limit": 60, "period": 60 } }
+  ]
+}

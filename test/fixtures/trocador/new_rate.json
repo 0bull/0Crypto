@@ -1,0 +1,24 @@
+{
+  "_ASSUMPTION": "built from docs, not captured live",
+  "trade_id": "RATE123abc",
+  "date": "2026-11-13 10:00:00",
+  "ticker_from": "btc",
+  "ticker_to": "xmr",
+  "coin_from": "Bitcoin",
+  "coin_to": "Monero",
+  "network_from": "Mainnet",
+  "network_to": "Mainnet",
+  "amount_from": 0.001,
+  "amount_to": 0.2511,
+  "provider": "ProviderA",
+  "fixed": "True",
+  "status": "New Rate",
+  "payment": "False",
+  "quotes": [
+    { "provider": "ProviderA", "kycrating": "A", "amount_to": "0.2511", "waste": "1.2", "fixed": "True" },
+    { "provider": "ProviderB", "kycrating": "B", "amount_to": "0.2600", "waste": "0.9", "fixed": "True" },
+    { "provider": "ProviderC", "kycrating": "C", "amount_to": "0.2700", "waste": "0.5", "fixed": "True" },
+    { "provider": "ProviderD", "kycrating": "D", "amount_to": "0.2800", "waste": "0.1", "fixed": "True" },
+    { "provider": "ProviderNoRating", "amount_to": "0.3000", "waste": "0.1", "fixed": "True" }
+  ]
+}

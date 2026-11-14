@@ -1,0 +1,36 @@
+---
+// The landing page shell: head, fonts, tokens and the one landing stylesheet. Components on
+// the landing carry no <style> blocks, so the CSP needs no extra hashes for them.
+import "@fontsource/archivo/latin-800.css";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-500.css";
+import "@fontsource/inter/latin-600.css";
+import "@fontsource/jetbrains-mono/latin-500.css";
+import "../styles/tokens.css";
+import "../styles/landing.css";
+// The hero h1 is the largest paint; fetch its face with the HTML instead of after the CSS.
+import archivoUrl from "@fontsource/archivo/files/archivo-latin-800-normal.woff2?url";
+
+interface Props {
+  title: string;
+  description: string;
+}
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0b0e" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="preload" href={archivoUrl} as="font" type="font/woff2" crossorigin />
+  </head>
+  <body class="landing">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <slot />
+  </body>
+</html>

@@ -1,0 +1,40 @@
+---
+title: Share a payment link
+description: Make a web page that anyone can use to pay you, with no shop needed.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+A **payment link** is a web page you can share anywhere: in a message, an email or on social media. The customer opens it, presses **Pay**, and lands on a normal checkout. You do not need a website.
+
+## Create a link
+
+<Steps>
+
+1. In your admin open **Payment links** and press **New link**.
+
+2. Give it a **Title** that your customer will recognise, such as "Workshop ticket".
+
+3. Choose the **Currency** (USD or EUR). Either set a fixed **Price**, or leave it empty so the customer types an amount between 1.00 and 10,000.00.
+
+4. Under **Assets** optionally tick which coins this link accepts. If you tick none, every enabled coin is offered.
+
+5. Press **Create link**, then copy the link from the list. It looks like `https://your-gateway/l/abc123`.
+
+</Steps>
+
+## How it behaves
+
+- **Opening the page creates nothing.** Chat apps and search engines open links to make previews. That is harmless. An invoice is created only when someone presses **Pay**, and each press makes one invoice.
+- **Stop using a link** by pressing **Deactivate** in the list. **Reactivate** turns it on again.
+- **The page never shows your balance,** other invoices or addresses.
+
+## A word on abuse
+
+A payment link is public on purpose, so anyone who has it can press **Pay** and create invoices that are never paid. Limits keep this small: each address can use 60 page views or presses a minute, each link 10 invoices a minute, and all links together 40 a minute. If the 40 are used up, link checkouts stop until the minute ends and an alert called `links.budget` appears on your Overview. Junk invoices expire by themselves. If someone abuses a link, deactivate it and share a new one. Your webhook handler should ignore `invoice.created` events it does not need.
+
+Programmers can also create links through the [API](/docs/sell-online/api/).
+
+:::tip[You should now see]
+Opening your link in a private browser window shows the title and a **Pay** button (or an amount box), and pressing it opens a checkout. The new invoice then appears in your Invoices list.
+:::

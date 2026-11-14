@@ -1,0 +1,48 @@
+---
+title: Sell with WooCommerce
+description: Install the 0Crypto plugin so your WordPress shop takes crypto payments.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+The 0Crypto plugin adds a crypto payment option to a WooCommerce shop. It creates an invoice for each order, sends the customer to the 0Crypto checkout, and marks the order paid when the payment is confirmed. It only sends the order number, total and currency. Customer names and emails never leave your shop.
+
+## What you need
+
+- WordPress 6.2 or newer, WooCommerce 8.0 or newer, and PHP 8.1 or newer.
+- The classic checkout. The newer block-based checkout is not supported yet.
+- A shop in US dollars or euros with **2 price decimals** (WooCommerce, Settings, General, Number of decimals). Other setups do not show the option.
+- Your gateway address (for example `https://0crypto.your-name.workers.dev`) and the [webhook secret](/docs/webhooks/).
+
+## Install and connect
+
+<Steps>
+
+1. In 0Crypto, open **API keys & webhooks**, type a label, press **Create key** and confirm with your passkey. The key starts with `0c_live_` and is shown once. Copy it now.
+
+2. Put the plugin folder `0crypto-woocommerce` into `wp-content/plugins` on your WordPress server and activate **0Crypto for WooCommerce** under Plugins. The folder comes from the `plugins/woocommerce` folder of the 0Crypto repository, without its `tests`, `vendor` and `composer` files.
+
+3. In WordPress go to WooCommerce, Settings, Payments, **0Crypto (crypto)**. Tick **Enable 0Crypto**. It is off by default, and without it no crypto option shows at checkout. Fill in **Gateway URL** (it must be `https://`), **API key** and **Webhook secret** (starts with `whsec_`), then save.
+
+4. Copy the webhook address the plugin shows. It looks like `https://YOUR-SHOP/wp-json/0crypto/v1/webhook`. In 0Crypto, paste it into **Webhook URL** on **API keys & webhooks** and press **Save webhook URL**. The webhook secret is under **Reveal secret** on the same page.
+
+5. Place a test order for each outcome before you go live: paid, expired, partial and late.
+
+</Steps>
+
+## What happens to orders
+
+| Payment | Order |
+|---|---|
+| Paid in full | Marked paid, if the amount and currency match the order |
+| Paid too little | A note on the order |
+| Expired unpaid | Cancelled, if it was still pending |
+| Paid after expiry, or a mismatch | Put on hold with a note, for you to check |
+
+:::note
+One gateway has one webhook URL, so one gateway serves one shop. Events that are not WooCommerce orders (point of sale, payment links) reach the plugin too, and it ignores them safely.
+:::
+
+:::tip[You should now see]
+A test order at your shop sends you to a 0Crypto checkout page, and after you pay it the order changes to paid in WooCommerce without you touching it.
+:::

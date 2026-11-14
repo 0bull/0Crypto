@@ -1,0 +1,59 @@
+---
+title: Routed mode and your seed phrase
+description: Let the gateway hold the keys so you can take Ethereum, Tron, Solana and use privacy routing.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Most merchants never need this page. Read it only if you want to accept Ethereum and its tokens, USDT on Tron, or Solana, or if you want [privacy routing](/docs/advanced/privacy-routing/).
+
+## What routed mode means
+
+In the default **watch mode**, your wallet holds the keys and 0Crypto only watches. In **routed mode** the gateway itself holds a **seed phrase** (24 secret words that control all the funds). It creates the deposit addresses from it, and it moves ("sweeps") the money itself.
+
+:::danger
+In routed mode the keys live inside your Worker. Whoever takes over your Cloudflare account, your Worker or your seed phrase can move the funds. Keep Cloudflare sign-in strong (two-step verification on) and do not share the seed phrase with anyone.
+:::
+
+Which coins need which mode:
+
+| Mode | Coins |
+|---|---|
+| Watch mode | Bitcoin, Litecoin, Dogecoin |
+| Routed mode only | Ethereum and tokens on Ethereum, Base, Arbitrum, Polygon and BNB Chain, USDT on Tron, SOL and USDC on Solana |
+
+Ethereum chains, Tron and Solana have **no watch mode**. There is no way to take them without the gateway holding keys. Bitcoin, Litecoin and Dogecoin can also run in routed mode if you set no public key for them, but then the gateway holds those keys too.
+
+## Turn it on
+
+<Steps>
+
+1. On your own computer, in a copy of your 0Crypto repository (clone the GitHub copy the Deploy button made, then run `npm ci`), sign in to Cloudflare with `npx wrangler login`, then run `npm run setup`. It prints a 24-word seed phrase once and stores it as the Worker secret `MASTER_SEED`. This is the only command that creates the seed.
+
+2. Write the 24 words on paper or metal and keep them **offline**. Do not put them in cloud notes, email or chat. If you lose them and something goes wrong with your Cloudflare account, the funds cannot be recovered.
+
+3. Open `wrangler.jsonc` in your copy and, under `vars`, set `"ALLOW_SEED_CUSTODY": "true"`. Commit and push, so Cloudflare rebuilds your gateway. This is a deliberate on-switch. Without it routed mode stays off, even with a seed. Set it in `wrangler.jsonc`, not in the Cloudflare dashboard: a setting typed into the dashboard is replaced by the next deploy, and your routed chains would switch off after an update.
+
+4. Add the settings the chain you want needs. [Ethereum, Tron and Solana](/docs/advanced/evm-tron-solana/) lists them. The gateway's Wallets page shows, per chain, whether it is ready and what is missing.
+
+</Steps>
+
+`ALLOW_SEED_CUSTODY` is one switch for the whole gateway. Once it is on, every chain without a public key becomes custodial. Review which coins you accept after changing it.
+
+## Rules to keep
+
+- **Never use one seed phrase for two deployments**, for example a test copy and the real one. They would create the same wallets and sweep each other's deposits.
+- **Never change the seed phrase on a live gateway.** If your wallet addresses on the Wallets page change, you have the wrong seed.
+- **Back up the seed.** A database backup contains no private keys and cannot recover funds. The seed can.
+
+## What it costs
+
+0Crypto charges no fee. Routed mode has running costs of its own:
+
+- **Network fees (gas)** for every sweep on Ethereum chains and Solana, paid from the gateway's hot wallet.
+- **Tron energy**, rented per sweep from TronSave with a prepaid TronSave balance.
+- **Privacy routing fees**: Railgun takes 0.25% of every shield, and Trocador swaps have a spread.
+
+:::tip[You should now see]
+The Wallets page lists the chains you set up, with a wallet address for each (the "hot wallet") and a note on what is still missing. Chains that are ready show as ready.
+:::

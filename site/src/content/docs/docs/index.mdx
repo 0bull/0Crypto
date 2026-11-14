@@ -1,0 +1,37 @@
+---
+title: Before you start
+description: What you need before you set up 0Crypto, and how long it takes.
+---
+
+0Crypto is a crypto payment gateway that runs in your own Cloudflare account. Nobody else holds your keys or sees your customers. Setting it up takes about ten minutes, and you never need to open a terminal for the basic setup.
+
+## What you need
+
+- **A Cloudflare account on the Workers Paid plan.** It costs about $5 a month. The free plan is too small to watch payments on the blockchain, so 0Crypto will not run on it. [Deploy](/docs/deploy/) shows where to switch it on.
+- **A GitHub account.** The Deploy to Cloudflare button copies 0Crypto into your GitHub account, so Cloudflare can keep it up to date.
+- **A crypto wallet that can show an extended public key.** This is a long text that starts with `xpub` or `zpub`. It lets 0Crypto create a fresh receiving address for each customer without ever being able to spend your coins. [Add your wallet](/docs/wallet/) covers Sparrow, Electrum and BlueWallet.
+- **A device that can make a passkey.** A phone, a laptop with Face ID or Touch ID, a Windows Hello PC, or a hardware security key. Passkeys are the only way to sign in to 0Crypto. There is no password.
+
+## Two ways to hold your money
+
+**Watch mode** is the default and what these guides cover. Your wallet holds the keys. 0Crypto only watches the blockchain for payments to addresses made from your public key. It supports Bitcoin and Litecoin, and Dogecoin if you add a Blockbook address.
+
+**Routed mode** is for advanced setups: Ethereum and other token chains, Tron, Solana, and privacy routing. Here the gateway holds a seed, so it needs one terminal command and a deliberate opt-in. It is covered under Advanced, not here.
+
+## Words you will meet
+
+- **Passkey:** a sign-in stored on your device and opened with your fingerprint, face or PIN.
+- **Webhook:** a message 0Crypto sends to your website when a payment arrives.
+- **Extended public key (xpub):** a text from your wallet that lets 0Crypto make receiving addresses without being able to spend.
+
+## The five steps
+
+1. [Deploy 0Crypto](/docs/deploy/) with the Cloudflare button.
+2. [Find your setup code](/docs/setup-code/) in the logs.
+3. [Create your passkey](/docs/passkey/).
+4. [Add your wallet](/docs/wallet/).
+5. [Take a first payment](/docs/first-payment/).
+
+:::note
+The only secret you type in is the one-time setup code, and only on your own gateway's setup page. Never share it. Sign-in is by passkey, so if a page ever asks for a password, you are not on 0Crypto.
+:::

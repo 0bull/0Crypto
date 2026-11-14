@@ -1,0 +1,83 @@
+---
+import { DOCS_PATH } from "../../site.config.ts";
+
+// Five steps, each linking to its docs page. The icons are 24-unit strokes drawn with
+// presentation attributes only.
+const steps = [
+  {
+    title: "Deploy",
+    text: "Press Deploy to Cloudflare and it copies 0Crypto into your account.",
+    href: `${DOCS_PATH}deploy/`,
+    icon: ["M7 18h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 8.6 4.75 4.75 0 0 0 7 18Z", "M12 15.5v-5", "m9.75 12.5 2.25-2.25 2.25 2.25"],
+  },
+  {
+    title: "Code from the logs",
+    text: "Open your Worker's logs and copy the six-word setup code.",
+    href: `${DOCS_PATH}setup-code/`,
+    icon: ["M4 5h16v14H4z", "m7.5 9.5 2.5 2.5-2.5 2.5", "M12.5 14.5h4"],
+  },
+  {
+    title: "Passkey",
+    text: "Create a passkey on your phone or laptop. That is your sign-in.",
+    href: `${DOCS_PATH}passkey/`,
+    icon: [
+      "M6.5 10.5a5.5 5.5 0 0 1 11 0v1.5",
+      "M9 12v1a8 8 0 0 1-1.5 4.5",
+      "M12 10.5v3a10 10 0 0 1-1.25 5",
+      "M15 13.5a12 12 0 0 1-.75 5",
+      "M17.5 15a13 13 0 0 1-.4 2",
+    ],
+  },
+  {
+    title: "Wallet",
+    text: "Paste your wallet's public key and check the first address matches.",
+    href: `${DOCS_PATH}wallet/`,
+    icon: ["M4 7.5A1.5 1.5 0 0 1 5.5 6H18v3", "M4 7.5v10A1.5 1.5 0 0 0 5.5 19H20V9H5.5A1.5 1.5 0 0 1 4 7.5Z", "M16.5 14h.01"],
+  },
+  {
+    title: "First payment",
+    text: "Create a $1 test invoice, pay it, and watch it turn paid.",
+    href: `${DOCS_PATH}first-payment/`,
+    icon: ["M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17Z", "m8.5 12.25 2.5 2.5 4.75-5"],
+  },
+];
+---
+
+<section id="setup" class="section" aria-labelledby="setup-title">
+  <div class="wrap">
+    <h2 id="setup-title" class="section__title">How setup works</h2>
+    <p class="section__lede">
+      Five steps in the browser for watch mode. No terminal, no config files. Each step has its own page in the docs.
+    </p>
+
+    <ol class="steps">
+      {
+        steps.map(({ title, text, href, icon }, i) => (
+          <li class="step">
+            <span class="step__node">
+              <svg class="step__icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                {icon.map((d) => (
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                ))}
+              </svg>
+            </span>
+            <span class="step__num" aria-hidden="true">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <h3 class="step__title">
+              <a href={href}>{title}</a>
+            </h3>
+            <p class="step__text">{text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>

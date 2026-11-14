@@ -1,0 +1,64 @@
+---
+title: Get notified with webhooks
+description: Have 0Crypto tell your website when a payment arrives, and check that the message is real.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+A **webhook** is a message 0Crypto sends to your website when something happens to an invoice, for example when it is paid. Your shop can use it to mark an order as paid. If you use the [WooCommerce plugin](/docs/sell-online/woocommerce/), it does this for you and you only need the address and the secret below.
+
+## What you need from 0Crypto
+
+- **The webhook secret.** It starts with `whsec_`. Your website uses it to check that a message really came from your gateway and not from someone pretending to be it.
+- **A webhook URL.** This is an address on your own website that accepts the messages.
+
+You can set both in the setup wizard (the **Done** step) or later on **API keys & webhooks** in your admin menu (the page is titled **Developers**).
+
+## Set it up
+
+<Steps>
+
+1. Open your admin and go to **API keys & webhooks**.
+
+2. In the **Webhooks** box, enter your webhook URL in **Webhook URL** and press **Save webhook URL**. It must start with `https://`. Leave it blank to send no webhooks.
+
+3. Press **Send test event**. The button stays grey until a URL is saved. The page then shows the answer your website gave. A test message is never retried.
+
+4. In the **Webhook secret** box, press **Reveal secret**, confirm with your passkey and copy the secret into your website's settings. Treat it like a password. Anyone who has it can forge payment messages.
+
+</Steps>
+
+Events are only sent while a webhook URL is saved. If you add the URL later, the gateway does not go back and send the events from before; they stay in the invoice's event list in your admin. One gateway has one webhook URL, so it serves one shop. Events for invoices that your shop did not create (point of sale, payment links, subscriptions) reach it too. A good handler ignores events it does not recognise and answers "200 OK" so 0Crypto does not retry them.
+
+## What gets sent
+
+Every message says what happened and carries the invoice. The main events are:
+
+| Event | Meaning |
+|---|---|
+| `invoice.created` | A new invoice exists |
+| `payment.detected` | A payment was seen on the blockchain but is not confirmed yet |
+| `payment.confirmed` | A payment has enough confirmations |
+| `invoice.paid` | The invoice is paid in full. This is the one most shops act on |
+| `invoice.partially_paid` | The customer paid too little |
+| `invoice.late_payment` | A payment arrived after the invoice expired |
+| `invoice.expired` | The invoice ran out of time unpaid |
+| `subscription.invoice_created` | A [recurring invoice](/docs/recurring/) was created |
+| `refund.approved` | You approved a refund. It names the refund, the payment, the invoice, the coin, the amount and the customer's address |
+| `webhook.test` | The test message from **Send test event**. It is not stored |
+
+Gateways in routed mode also send `routing.completed`, `routing.failed`, `routing.stuck` and `sweep.insufficient_gas` events about moving funds. They carry no customer details.
+
+If your website is down or answers with anything other than a success status, 0Crypto tries again later with longer and longer waits (about a minute at first, then doubling up to 6 hours), up to 20 times. Events that never get through raise a `webhook.dead` alert on your Overview. Retries can deliver the same event twice, so use the event `id` to ignore repeats.
+
+## Check that a message is real
+
+Every message carries a header called `0Crypto-Signature`. Your website recomputes the signature from the raw message body and the webhook secret, and rejects the message if they differ or if the time in the header is more than five minutes off. The exact recipe, with code, is on the [API page](/docs/sell-online/api/#verify-a-webhook).
+
+## Change the secret
+
+Press **Rotate secret** in the **Webhook secret** box. It asks for your passkey and then shows the new secret once. Other copies of the gateway may use the old secret for up to 30 seconds. After that, new messages are signed with the new secret. Messages already waiting to be retried are signed again with the new one, so update your server straight after rotating. 0Crypto does not accept two secrets at once. If you set the secret yourself as a Worker secret named `WEBHOOK_SECRET`, the button is grey and the page tells you to change it with `npx wrangler secret put WEBHOOK_SECRET`.
+
+:::tip[You should now see]
+After **Send test event**, your website logs a message whose header is named `0Crypto-Signature`, and your check accepts it using the secret that starts with `whsec_`.
+:::

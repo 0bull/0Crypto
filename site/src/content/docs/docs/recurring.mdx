@@ -1,0 +1,37 @@
+---
+title: Bill customers on a schedule
+description: Create weekly, monthly or yearly invoices with subscriptions.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+A **subscription** creates a normal invoice every week, month or year. 0Crypto never charges anyone. Crypto does not work that way. Each time, it makes an invoice and tells your website, and your customer pays it themselves. An invoice nobody pays expires after 7 days.
+
+## Create a subscription
+
+<Steps>
+
+1. In your admin open **Subscriptions**. The **New subscription** box is at the top.
+
+2. Enter a **Label** (for example "Pro plan"), the **Amount** and **Currency**, and choose the **Interval**: weekly, monthly or yearly.
+
+3. Under **First invoice (UTC)** choose when it starts. Leave it blank to invoice now. The start time sets the hour of the day and the day of the month for every later invoice.
+
+4. Press **Create subscription**. Subscriptions are never deleted. You press **Deactivate** instead, and past invoices keep their history.
+
+</Steps>
+
+## Get the invoice to your customer
+
+Each period, 0Crypto sends a `subscription.invoice_created` [webhook](/docs/webhooks/) that includes a `checkout_url`. Your website (or an automation tool) should email that address to the customer. Without a webhook URL, nobody tells your customer an invoice is waiting, so set one first. Events made while no URL was saved are not sent later.
+
+## When invoices are made
+
+- Invoices are created at the top of each hour (UTC).
+- Monthly keeps the start day and uses the last day of shorter months (a Jan 31 start bills on Feb 28 or 29, then Mar 31). Yearly keeps the month and day. Weekly is exactly 7 days.
+- If several periods were missed (the start date was in the past, or the gateway was down), **one** invoice is made for the latest missed period and the schedule moves on. You are never billed a burst of old invoices.
+- A subscription whose stored details stop being valid is switched off and raises an alert. Create a new one.
+
+:::tip[You should now see]
+After the start time passes, a new invoice appears in your Invoices list with the subscription's label, and your webhook receives `subscription.invoice_created`.
+:::

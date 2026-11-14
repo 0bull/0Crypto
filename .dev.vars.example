@@ -1,0 +1,49 @@
+# Copy to .dev.vars for `npm run dev`. Never commit .dev.vars.
+# --- secrets: none are required. The gateway generates its own session and webhook keys and prints a setup code in the Worker logs ---
+MASTER_SEED=  # leave blank unless you use routed mode (EVM, Tron, Solana); see docs
+# SESSION_SECRET=  # optional: replaces the Worker-generated session key (signs admin session cookies)
+# WEBHOOK_SECRET=whsec_  # optional: replaces the Worker-generated webhook signing key
+# --- deposit addresses: watch mode (default) needs an xpub per chain ---
+# BTC_XPUB=  # account-level xpub/zpub from your own wallet; 0Crypto only watches its addresses
+# LTC_XPUB=  # Ltub/zpub/xpub for Litecoin
+# DOGE_XPUB=  # dgub/xpub for Dogecoin
+# BTC_XPUB_START_INDEX=0  # first address index to hand out; set past any addresses the account already used
+# LTC_XPUB_START_INDEX=0  # first Litecoin address index to hand out
+# DOGE_XPUB_START_INDEX=0  # first Dogecoin address index to hand out
+# ALLOW_SEED_CUSTODY=true  # routed mode: chains without an xpub derive from MASTER_SEED and the Worker holds keys
+# --- optional secrets: EVM RPC URLs (they usually carry an API key; in production: wrangler secret put EVM_RPC_BASE) ---
+# EVM_RPC_ETH=  # JSON-RPC URL(s) for Ethereum, comma-separated for fallbacks; EVM assets also need ALLOW_SEED_CUSTODY=true
+# EVM_RPC_BASE=  # JSON-RPC URL(s) for Base
+# EVM_RPC_ARB=  # JSON-RPC URL(s) for Arbitrum One
+# EVM_RPC_POLYGON=  # JSON-RPC URL(s) for Polygon PoS
+# EVM_RPC_BSC=  # JSON-RPC URL(s) for BNB Chain
+# --- optional secrets: Tron (routed mode only: needs ALLOW_SEED_CUSTODY=true; in production: wrangler secret put TRONGRID_API_KEY) ---
+# TRONGRID_API_KEY=  # TronGrid API key; required to enable tron:usdt
+# TRON_API_URL=  # https endpoint override for a TronGrid-compatible node (default https://api.trongrid.io)
+# TRONSAVE_API_KEY=  # TronSave key, needed only for Tron sweeps (energy rental)
+
+# --- optional secrets: Solana (routed mode only: needs ALLOW_SEED_CUSTODY=true; in production: wrangler secret put SOLANA_RPC_URL) ---
+# SOLANA_RPC_URL=  # mainnet-beta JSON-RPC URL(s), https, comma-separate fallbacks; required to enable sol:sol and sol:usdc
+# (RPC endpoints are trusted: the genesis-hash check only guards against misconfiguration, not a malicious node)
+# --- optional secrets: Trocador (privacy routing to XMR; in production: wrangler secret put TROCADOR_API_KEY) ---
+# TROCADOR_API_KEY=  # Trocador API key (sent only in the API-Key header); trades also need TROCADOR_LIVE_OK=1 after docs/trocador-spike.md
+# --- optional secret: Lightning via Nostr Wallet Connect (in production: wrangler secret put NWC_URI) ---
+# NWC_URI=  # nostr+walletconnect://<wallet pubkey>?relay=wss://...&secret=<hex>; create it RECEIVE-ONLY (get_info, make_invoice, lookup_invoice); enables ln:btc
+# --- optional endpoints and keys ---
+# BTC_ESPLORA_URL=  # your own Esplora endpoint for Bitcoin; removes the blockstream.info fallback
+# LTC_ESPLORA_URL=  # your own Esplora endpoint for Litecoin (default litecoinspace.org)
+# DOGE_BLOCKBOOK_URL=  # Blockbook endpoint, required to enable Dogecoin
+# DOGE_API_KEY=  # API key for the Blockbook endpoint, if your endpoint requires one
+# COINGECKO_KEY=  # optional CoinGecko key, used for prices Kraken lacks
+# --- settings (vars in wrangler.jsonc; override here for local dev) ---
+# WEBHOOK_URL=https://merchant.example/webhooks/0crypto  # where invoice events are POSTed; unset means no webhooks
+# MERCHANT_NAME=My Shop  # shown on checkout pages
+# SUCCESS_URL_HOSTS=shop.example.com  # comma-separated hostnames an invoice success_url may point to (also editable in admin settings)
+# ADMIN_SETUP_CODE=  # optional: lets CI claim a fresh deployment; 32+ chars; never used for recovery
+# --- privacy routing vars (wrangler.jsonc vars in production; see docs/deploy.md) ---
+# RAILGUN_0ZK_ADDRESS=  # your Railgun 0zk address, where EVM funds are shielded
+# RAILGUN_GOLDEN_OK=  # "1" only after the live spike in docs/railgun-spike.md
+# RAILGUN_GOLDEN_OK_CHAINS=  # EVM chains whose own spike passed, e.g. base,arb
+# XMR_ADDRESS=  # your Monero address, where Trocador swaps are paid
+# TROCADOR_LIVE_OK=  # "1" only after the live spike in docs/trocador-spike.md
+# (the POS PIN is not an env value: set it in the admin at /admin/pos; it is stored hashed in D1)

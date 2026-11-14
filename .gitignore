@@ -1,0 +1,13 @@
+node_modules/
+.wrangler/
+.dev.vars
+.superpowers/
+coverage/
+dist/
+.dev.admin
+artifacts/
+cache/
+types/
+plugins/woocommerce/vendor/
+plugins/woocommerce/.phpunit.result.cache
+.playwright-mcp/

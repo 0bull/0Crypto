@@ -1,0 +1,60 @@
+---
+title: Privacy routing
+description: Move swept funds on to your own private addresses so customers cannot follow them to your balance.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+**Privacy routing** is optional and needs [routed mode](/docs/advanced/routed-mode/). It moves funds out of the hot wallets in batches, after a random delay, to private addresses that you own. A customer who follows their payment on a block explorer then loses the trail at the hot wallet.
+
+It reduces what a customer can learn. It does not remove it. See [Security](/docs/security/) for the plain facts.
+
+## Where the money goes
+
+- **Ethereum chains** (ETH, BNB, POL and stablecoins): shielded into **Railgun** and sent to your Railgun address (it starts with `0zk`).
+- **Bitcoin, Litecoin, Dogecoin, Tron USDT, SOL and Solana USDC:** swapped to Monero through **Trocador** and paid to your Monero address.
+- Coins in watch mode are never routed, because 0Crypto holds no keys for them. TRX on Tron is never routed, because it is the hot wallet's fuel. Lightning is not routed either.
+
+The destinations are only read from settings in your copy's `wrangler.jsonc`, never from the API or the admin. No one who signs in to your admin can change where your money goes.
+
+## What it costs
+
+- Railgun takes **0.25%** of every shield, plus network gas.
+- Trocador swaps have a **spread** built into the quoted amount. The **Privacy routing** page shows it for each step.
+- Hot wallets must hold enough gas for routing (see [Ethereum, Tron and Solana](/docs/advanced/evm-tron-solana/)).
+
+## Set it up
+
+<Steps>
+
+1. In your copy's `wrangler.jsonc`, under `vars`, add your destinations: `RAILGUN_0ZK_ADDRESS` and `XMR_ADDRESS`. Optional tuning settings are `TROCADOR_MIN_KYC`, `ROUTE_MIN_BATCH_USD` (default 200), `ROUTE_DELAY_MIN_H` and `ROUTE_DELAY_MAX_H` (default 2 and 24 hours) and `HOT_CAP_USD` (default 5000). Add the secret `TROCADOR_API_KEY` with `npx wrangler secret put TROCADOR_API_KEY`. Commit and push the file so Cloudflare rebuilds.
+
+2. Leave the **live gates** empty at first. They are on/off switches that stop real money moving until you have proved it works.
+
+3. Do the Railgun live check for each Ethereum chain you use: send a small amount through by hand and confirm it arrives in your own Railgun wallet. Only then set `RAILGUN_GOLDEN_OK` to `"1"` and list the proven chains in `RAILGUN_GOLDEN_OK_CHAINS`, for example `"base,arb"`.
+
+4. Do the Trocador live check the same way. When a small swap arrives in your own Monero wallet, set `TROCADOR_LIVE_OK` to `"1"`.
+
+5. Fund the hot wallets for routing, then open the **Privacy routing** page. It says, for each asset, why nothing is moving yet.
+
+</Steps>
+
+The step-by-step live checks and their scripts are in the repository's `docs/railgun-spike.md` and `docs/trocador-spike.md`. Do not skip them.
+
+## What to expect
+
+Once what a hot wallet holds is worth the minimum batch, a batch is scheduled for a random time a few hours later. The whole balance then goes out in one to three random chunks. A balance at or above the hot cap goes out at once. Without routing there is no cap, so funds keep piling up in the hot wallet.
+
+A Railgun shield takes a few runs of the 15-minute cycle. A swap finishes when Trocador pays out, usually within an hour.
+
+## Things that need you
+
+Your Overview shows alerts. The ones to know are `routing.stuck` (something needs a person), `routing.failing`, and `routing.over_cap` (a hot wallet holds more than the cap and routing cannot move it). Actions that change money, such as **Mark resolved**, **Release stuck UTXO leg** and **Resume batch**, ask for your passkey and are logged. Look at the chain and at the provider's support link before using them.
+
+## Refunds
+
+A confirmed payment can be refunded from its invoice page, with the **Refund…** link next to the payment. Enter the customer's address and an amount up to what arrived, then press **Approve and send refund** and confirm with your passkey. The gateway tries to send it at once. At most one refund goes out per hour; a second one in the same hour is refused with "Only one refund per hour: try again later." Each approved refund raises an alert ("A refund was approved") and sends a `refund.approved` [webhook](/docs/webhooks/), so nothing leaves quietly. A refund is refused while routing is running ("routing is running, try again in a few minutes"). If a refund was approved but not sent, or the network did not take it, its row shows the state (for example "approved, not sent" or "consumed, unsent") and offers **Re-approve and send** or **Cancel refund**. Where the transaction was recorded but not accepted, check a block explorer before choosing. **A refund links your hot wallet to that customer on the blockchain.** Tron refunds are not supported yet, so refund those by hand.
+
+:::tip[You should now see]
+The Privacy routing page lists your assets, each either routing or with a reason it is waiting (for example a live gate that is still off). After your live checks, a small test batch shows as completed.
+:::

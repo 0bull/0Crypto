@@ -1,0 +1,191 @@
+{
+  "generator": "tools/railgun-golden/gen.mjs",
+  "versions": {
+    "@railgun-community/engine": "9.9.1",
+    "@railgun-community/shared-models": "8.2.3",
+    "ethers": "6.14.3"
+  },
+  "ivStub": "ByteUtils.randomHex replaced by a queue [gcmIv, ctrIv] during each serialize (see gen.mjs header)",
+  "shieldPrivateKey": {
+    "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    "path": "m/44'/60'/0'/0/0",
+    "hotAddress": "0x9858EfFD232B4033E47d90003D41EC34EcaEda94",
+    "message": "RAILGUN_SHIELD",
+    "signature": "0xc6cb2b3d942fe85f4ee04d2150d5541c1eaf485585d94040c4019d036c83946d4bae29c58197331c9c7e51d4be0b1e491d708a5fd7cae618f45b91077df392001b",
+    "shieldPrivateKey": "0xf5539796b7b060900541405d8d3d6380aabd2e07de01de5d1a5056421e0ab548"
+  },
+  "addresses": [
+    {
+      "address": "0zk1qy4v02p5zkq0zfpaxhz79j5tslrv8c44d80d8jr2fuecrtxlp8lemrv7j6fe3z53ll0jm7u592n0hr8elesd0xzv6y9jpdvsyln80m95jcxhvnmagfqg5p6e9mp",
+      "masterPublicKey": "19349903103956176070235423774157995896840157182198600174309409106416294821789",
+      "viewingPublicKey": "df2dfb942aa6fb8cf9fe60d7984cd10b20b59027e677ecb4960d764f7d42408a",
+      "chain": null
+    },
+    {
+      "address": "0zk1qyk9nn28x0u3rwn5pknglda68wrn7gw6anjw8gg94mcj6eq5u48t7unpd9kxwaw2k9ma02nutwtcqc979wnce0qwly4y7w4rls5cq040g7z8eagshxrw5hjes72",
+      "masterPublicKey": "20060431504059690749153982049210720252589378133547582826474262520121417617087",
+      "viewingPublicKey": "77d7aa7c5b978060be2ba78cbc0ef92a4f3aa3fc29803eaf47847cf510b986ea",
+      "chain": {
+        "type": 0,
+        "id": 42161
+      }
+    },
+    {
+      "address": "0zk1qyst3wd434xcc7hyfwq68hg589lx7600l70xfn6xxrhsarhwyy7gkunpd9kxwatwqxft9ezqa4cwwqq0v0pc8wclmfu399w0lw5vypup93du5h5ptj3hs20gts4",
+      "masterPublicKey": "14800392732289184983881558457362039105323818840561626516748837702494589107339",
+      "viewingPublicKey": "92b2e440ed70e7000f63c383bb1fda791295cffba8c207812c5bca5e815ca378",
+      "chain": {
+        "type": 0,
+        "id": 1
+      }
+    },
+    {
+      "address": "0zk1qyqgs4ez5pxwk2ksp3c7suac32mcv5ck3p47pne5qmj6ssfl6xezerv7j6fe3z53l7uknjnv72yr4dzv3pm6surf72qxc6gunndx7et7c3tkjelyw9376l9eemh",
+      "masterPublicKey": "240892586261826883732851987668462730181452103232851849503060623445510435372",
+      "viewingPublicKey": "b969ca6cf2883ab44c8877a87069f2806c691c9cda6f657ec4576967e47163ed",
+      "chain": null
+    }
+  ],
+  "notes": [
+    {
+      "name": "usdc-arb-hot-key",
+      "inputs": {
+        "receiver0zk": "0zk1qy4v02p5zkq0zfpaxhz79j5tslrv8c44d80d8jr2fuecrtxlp8lemrv7j6fe3z53ll0jm7u592n0hr8elesd0xzv6y9jpdvsyln80m95jcxhvnmagfqg5p6e9mp",
+        "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "value": "1000000",
+        "shieldPrivateKey": "f5539796b7b060900541405d8d3d6380aabd2e07de01de5d1a5056421e0ab548",
+        "random": "00a1b2c3d4e5f60718293a4b5c6d7e8f",
+        "gcmIv": "000102030405060708090a0b0c0d0e0f",
+        "ctrIv": "f0e1d2c3b4a5968778695a4b3c2d1e0f"
+      },
+      "expected": {
+        "npk": "0x11099103b6ddb56da103fa619225f35b5dffb14cff5443f6c809c41d477fb789",
+        "token": {
+          "tokenType": 0,
+          "tokenAddress": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+          "tokenSubID": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "value": "1000000",
+        "encryptedBundle": [
+          "0x000102030405060708090a0b0c0d0e0fa039adadf7ed30e96e4b885098b0fbfc",
+          "0xe9ec7f580bad20de470fddb5e43188f3f0e1d2c3b4a5968778695a4b3c2d1e0f",
+          "0xb25acdfff3655caa3f2209bec4f20b4b6ab16d2911371fdaa239289d13f163f8"
+        ],
+        "shieldKey": "0xf899469e77315b1c97d8af9d328a34129cc574e0c67576b590263be1201a5587",
+        "sharedKey": "b9b2f241f6695bdb95f4286fe5e4acb0d9ef4fe83a325b8b421b9ac18bd2bce9"
+      }
+    },
+    {
+      "name": "weth-arb",
+      "inputs": {
+        "receiver0zk": "0zk1qyk9nn28x0u3rwn5pknglda68wrn7gw6anjw8gg94mcj6eq5u48t7unpd9kxwaw2k9ma02nutwtcqc979wnce0qwly4y7w4rls5cq040g7z8eagshxrw5hjes72",
+        "token": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+        "value": "1",
+        "shieldPrivateKey": "ee15333d25bf98939ccffa878c8cbd4d25929fe658122bfc42e916981b24d93b",
+        "random": "389c6549dbf3ded651508cb528b3f73b",
+        "gcmIv": "4c3caa57640f1c378e30b7e384c7ac2b",
+        "ctrIv": "0123456789abcdefffffffffffffffff"
+      },
+      "expected": {
+        "npk": "0x23243121c3b414f5dae250235d8baaf480c5f0f7f7497ded7c72baf72b43144b",
+        "token": {
+          "tokenType": 0,
+          "tokenAddress": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+          "tokenSubID": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "value": "1",
+        "encryptedBundle": [
+          "0x4c3caa57640f1c378e30b7e384c7ac2bae1096e835d6c68362fa7f4c862cbc51",
+          "0xe5f5b2c051c09bddb58214f028c9bcba0123456789abcdefffffffffffffffff",
+          "0x4baf0dfa77ed95af025955b3f88737bf3100835c38d74734ce3b679290e90c72"
+        ],
+        "shieldKey": "0x23d0ef4d9695db1c779a9ef08f240fbff664da7e5aef793f1df97e70b3e270ad",
+        "sharedKey": "711cb86334ef298e364fe7bfa0fd6669d800247f891718e0b75a0dea8f2443e0"
+      }
+    },
+    {
+      "name": "usdt-eth-max-uint120",
+      "inputs": {
+        "receiver0zk": "0zk1qyst3wd434xcc7hyfwq68hg589lx7600l70xfn6xxrhsarhwyy7gkunpd9kxwatwqxft9ezqa4cwwqq0v0pc8wclmfu399w0lw5vypup93du5h5ptj3hs20gts4",
+        "token": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        "value": "1329227995784915872903807060280344575",
+        "shieldPrivateKey": "d226557916f50e29d6b83e5dc087897d56d103e44fa61fd46a104f51ece543d9",
+        "random": "ffffffffffffffffffffffffffffff00",
+        "gcmIv": "f7bad0ea8ed2bb8bf79f2e5c3451dbb2",
+        "ctrIv": "ffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "npk": "0x0cdb8c44bb78b3e53bc096e79dc5b515f1c68e56f66347c946facd3a05cbd698",
+        "token": {
+          "tokenType": 0,
+          "tokenAddress": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+          "tokenSubID": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "value": "1329227995784915872903807060280344575",
+        "encryptedBundle": [
+          "0xf7bad0ea8ed2bb8bf79f2e5c3451dbb2846290ba893dfab36d1307a2cb05942a",
+          "0x4e7382522c71b3de1ea79eb4459720d0ffffffffffffffffffffffffffffffff",
+          "0x6589d2e42d2d474e51dd112c5ad64dc61e33469ed36cd3a8ab45ecb1aaba129b"
+        ],
+        "shieldKey": "0x7161cb526684aa7f16951f3fc573229f8a8d7f9ad92c794dab4b76f0c7fb220b",
+        "sharedKey": "f0e3516b4293fd9a0ee2046aa29a761f98d4cf0c25a0b90e87235fe5fbc2bc79"
+      }
+    },
+    {
+      "name": "tusd-leading-zero-mpk-zero-random",
+      "inputs": {
+        "receiver0zk": "0zk1qyqgs4ez5pxwk2ksp3c7suac32mcv5ck3p47pne5qmj6ssfl6xezerv7j6fe3z53l7uknjnv72yr4dzv3pm6surf72qxc6gunndx7et7c3tkjelyw9376l9eemh",
+        "token": "0x0000000000085d4780B73119b644AE5ecd22b376",
+        "value": "123456789",
+        "shieldPrivateKey": "360155b7aad89d4b8df96ce878dd5becaef8fa4be0e8eb12a0dbca45808fd00f",
+        "random": "00000000000000000000000000000000",
+        "gcmIv": "c56a24bd2363a8a4f72b48b97cafe421",
+        "ctrIv": "3b6e4bbf2809c3391fe5fc79440f8c3b"
+      },
+      "expected": {
+        "npk": "0x019bd870a11925fa0b7bafd05d58670b477d09538631858607a893e4aecbb55b",
+        "token": {
+          "tokenType": 0,
+          "tokenAddress": "0x0000000000085d4780b73119b644ae5ecd22b376",
+          "tokenSubID": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "value": "123456789",
+        "encryptedBundle": [
+          "0xc56a24bd2363a8a4f72b48b97cafe42138056d6ae55723b647b7b0ee6a90e22d",
+          "0x840289a8fd4b4980038a57fc7dbe04e43b6e4bbf2809c3391fe5fc79440f8c3b",
+          "0x7b01953c3effcfd28e28d99646186682cd10ddb0208486bc6d3a3d4148c58f14"
+        ],
+        "shieldKey": "0xdf4f5e7f63ae0a0b980ab3a38b627ff6d30dbdf4ededd798a6545452b9d8c19a",
+        "sharedKey": "5a59e7b8f1e66427473490ad54001b4a3836bb1fc609f6cb4e6215043f83def2"
+      }
+    },
+    {
+      "name": "usdc-leading-zero-npk",
+      "inputs": {
+        "receiver0zk": "0zk1qyk9nn28x0u3rwn5pknglda68wrn7gw6anjw8gg94mcj6eq5u48t7unpd9kxwaw2k9ma02nutwtcqc979wnce0qwly4y7w4rls5cq040g7z8eagshxrw5hjes72",
+        "token": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "value": "42",
+        "shieldPrivateKey": "73247fcd6724ada45f1aae8900703393ee75ca02eeecf0b137270f231f61d495",
+        "random": "2c0c431aa484b40364df2b17a24a5362",
+        "gcmIv": "56ffb3d50dd0bf8c625309b1ba07dda3",
+        "ctrIv": "9b8393e9e276dbb219359173bec98581"
+      },
+      "expected": {
+        "npk": "0x00ff308f49ce2df71e30c4302eafba2bcdbb81cefe25962db646b40fd31537fb",
+        "token": {
+          "tokenType": 0,
+          "tokenAddress": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+          "tokenSubID": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "value": "42",
+        "encryptedBundle": [
+          "0x56ffb3d50dd0bf8c625309b1ba07dda35283a4491cdbe313c4c6b143cbf576c3",
+          "0x52ac9ae190facecccc16d84ef5e197e99b8393e9e276dbb219359173bec98581",
+          "0x195a9b562caeb94b5fb98f0ee61107309cc7711650d99e3d5120057ddc563c14"
+        ],
+        "shieldKey": "0x5ec895ce43d9eb46c315aa9b1107e71f1fece84991605ea060a742ce938400c9",
+        "sharedKey": "b5020ef76af013fabc73e9d03145d22d6e15d17b69b0e21ea321ce839af638b9"
+      }
+    }
+  ]
+}

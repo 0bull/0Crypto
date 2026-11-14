@@ -1,0 +1,46 @@
+---
+title: Create your passkey
+description: Make the passkey that signs you in, and what to do if you lose it.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+A passkey is a sign-in that lives on your phone, laptop or security key and opens with your fingerprint, face or device PIN. 0Crypto uses passkeys only. There is no password to forget or leak.
+
+## Create it
+
+<Steps>
+
+1. On the setup page, with your 6 words in the **Setup code (6 words)** box, press **Create passkey**.
+
+2. Your device asks you to confirm with a fingerprint, face, PIN or security key. Do it.
+
+3. The gateway names the passkey **Passkey 1**. You can rename it later on the **Passkeys** page.
+
+4. The setup wizard opens. You are signed in.
+
+</Steps>
+
+:::tip[You should now see]
+A short setup wizard with three steps: **Your shop**, **Coins** and **Done**. Your browser also lists the new passkey in its password or passkey manager.
+:::
+
+## Add a second passkey
+
+Open **Passkeys** in the admin menu (under **Account**). In the **Add a backup passkey** box, type a name and press **Add passkey**, then confirm on a second device or a security key. If you lose your only device, a spare is the easiest way back in. The page shows "You can't remove your only passkey" instead of a working Remove button for the last one, and removing any passkey asks you to confirm with a passkey first. Removing a passkey signs every device out, including point-of-sale tablets, which then need their PIN again.
+
+## Lost your passkey or moved to a new domain?
+
+On the sign-in page, choose **Lost your passkey or moved to a new domain?** The page that opens is titled **Lost your passkey or moved?** It works like the [setup code](/docs/setup-code/), but the line in the logs starts with `0crypto recovery code:`. Type the 6 words, press **Create passkey**, and the new passkey (named **Recovered** and the date) belongs to the address you are visiting.
+
+:::caution
+Recovery signs every device out, and it also signs out any point-of-sale tablet, which needs its PIN again. If you are on a different address than before, the page shows a box that says "This will move your gateway to" and the new address. You must tick it before you can continue. Checkout links will use the new address from then on. Do this after you attach a custom domain.
+:::
+
+:::tip[You should now see]
+After recovery, you land in the admin with a new passkey. Your old passkeys are still listed, so remove any you no longer trust.
+:::
+
+:::note
+Deploying from CI and cannot read logs? You can set an optional `ADMIN_SETUP_CODE` secret of at least 32 characters. Type it into the same box. It works for the first claim only, never for recovery.
+:::

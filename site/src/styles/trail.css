@@ -1,0 +1,264 @@
+/*
+ * The trail section. Box and cut-label positions come from src/generated/trail-geometry.css;
+ * this file only styles them. Without data-state (no JS, reduced motion, failed load, or the
+ * copy the media query hid) everything shows the final frame. src/scripts/trail.ts sets
+ * data-state="ready" | "playing" | "done" on the animated copy and the label timings as
+ * --trail-* custom properties.
+ */
+
+.trail-figure {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 1200px;
+}
+
+.trail {
+  position: relative;
+  width: 100%;
+  container-type: inline-size;
+  /* Labels may overhang their boxes at small sizes; they never widen the page. */
+  overflow: clip;
+  color: var(--text, #f5f5f7);
+  font-family: var(--font-body, Inter, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  --trail-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --trail-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* One composition at a time; display:none also drops the other copy from the a11y tree. */
+.trail--landscape {
+  display: none;
+}
+.trail--portrait {
+  display: block;
+  max-width: 25rem;
+  margin-inline: auto;
+}
+@media (width >= 768px) {
+  .trail--landscape {
+    display: block;
+  }
+  .trail--portrait {
+    display: none;
+  }
+}
+
+/* Artwork: the static final frame, then the Lottie player over the same box. */
+.trail__static,
+.trail__player {
+  position: absolute;
+  inset: 0;
+}
+.trail__static :where(svg),
+.trail__player :where(svg) {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.trail__static {
+  transition:
+    opacity 0.3s var(--trail-ease-in-out),
+    visibility 0s linear 0.3s;
+}
+.trail[data-state] .trail__static {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Labels sit above the artwork. Name at the top of each box, note at the bottom, so the
+   coin docks in the clear middle band when it stops at the fresh address and the hop. */
+.trail__labels {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trail__label {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--trail-pad-y) var(--trail-pad-x);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.trail__name {
+  font-size: var(--trail-name-size);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.011em;
+  color: var(--text, #f5f5f7);
+}
+
+.trail__note {
+  font-size: var(--trail-note-size);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--muted, #a4a4ad);
+  text-wrap: balance;
+}
+
+.trail__label--you .trail__name {
+  color: var(--trail-you, #7fe0a8);
+  text-shadow: 0 0 0.9em rgb(127 224 168 / 0.35);
+}
+
+.trail__cut {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  /* The box comes from the geometry rule; the text span is its one flex item. */
+  display: flex;
+  margin: 0;
+  font-size: var(--trail-cut-size);
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--accent-2, #ff6a60);
+  overflow: visible;
+}
+
+/* Sizes per composition, in container units of the composition's own width. */
+.trail--landscape {
+  --trail-pad-y: 1.25cqi;
+  --trail-pad-x: 0.3cqi;
+  /* Floors keep notes at 10.5 px and the cut label at 10 px on a 768 px screen. */
+  --trail-name-size: clamp(0.6875rem, 1.5cqi, 1.125rem);
+  --trail-note-size: clamp(0.65625rem, 1.08cqi, 0.8125rem);
+  --trail-cut-size: clamp(0.625rem, 0.92cqi, 0.6875rem);
+}
+/* One line, so the note stays clear of the coin docked in the middle of the box. */
+.trail--landscape .trail__note {
+  white-space: nowrap;
+}
+.trail--landscape .trail__cut {
+  /* Under the snapped (dashed) stretch of hop → you. The auto margins centre the text
+     while it fits; once the box is narrower than the text they collapse to 0 and the
+     reversed row pins it to the "You" end, so it grows back over the gap, never into the
+     "You" box. */
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding: 0.4cqi 0.2cqi 0 0;
+}
+.trail--landscape .trail__cut > span {
+  margin-inline: auto;
+}
+
+.trail--portrait {
+  --trail-pad-y: 3.6cqi;
+  --trail-pad-x: 3cqi;
+  --trail-name-size: clamp(0.875rem, 4.4cqi, 1.125rem);
+  --trail-note-size: clamp(0.75rem, 3.5cqi, 0.9375rem);
+  --trail-cut-size: clamp(0.6875rem, 3.3cqi, 0.8125rem);
+}
+.trail--portrait .trail__cut {
+  /* Beside the snapped stretch of the vertical line. */
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* ready: the player shows frame 0, so the labels show the start of the story. */
+.trail[data-state="ready"] .trail__cut,
+.trail[data-state="ready"] .trail__label--you .trail__name {
+  transition:
+    opacity 0.3s var(--trail-ease-in-out),
+    color 0.3s var(--trail-ease-in-out),
+    text-shadow 0.3s var(--trail-ease-in-out);
+}
+.trail[data-state="ready"] .trail__cut {
+  opacity: 0;
+}
+.trail[data-state="ready"] .trail__label--you .trail__name {
+  color: var(--text, #f5f5f7);
+  text-shadow: none;
+}
+
+/* playing: keyframes timed by trail.ts from the composition's TIMELINE. */
+.trail[data-state="playing"] .trail__cut {
+  animation: trail-cut-in var(--trail-cut-dur, 0.483s) var(--trail-ease-out) var(--trail-cut-delay, 3.6s) both;
+}
+.trail[data-state="playing"] .trail__label--you .trail__name {
+  animation: trail-you var(--trail-you-dur, 0.467s) var(--trail-ease-in-out) var(--trail-you-delay, 3.967s) both;
+}
+.trail[data-state="playing"] .trail__label--hop .trail__name {
+  animation:
+    trail-hop-in var(--trail-hop-in-dur, 0.417s) var(--trail-ease-in-out) var(--trail-hop-in-delay, 2.7s) both,
+    trail-hop-out var(--trail-hop-out-dur, 1.083s) var(--trail-ease-in-out) var(--trail-hop-out-delay, 3.117s)
+      forwards;
+}
+
+@keyframes trail-cut-in {
+  from {
+    opacity: 0;
+    translate: 0 -0.35em;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes trail-you {
+  from {
+    color: var(--text, #f5f5f7);
+    text-shadow: 0 0 0.9em rgb(127 224 168 / 0);
+  }
+  to {
+    color: var(--trail-you, #7fe0a8);
+    text-shadow: 0 0 0.9em rgb(127 224 168 / 0.35);
+  }
+}
+
+@keyframes trail-hop-in {
+  from {
+    color: var(--text, #f5f5f7);
+  }
+  to {
+    color: var(--trail-hop, #b48cff);
+  }
+}
+
+@keyframes trail-hop-out {
+  from {
+    color: var(--trail-hop, #b48cff);
+  }
+  to {
+    color: var(--text, #f5f5f7);
+  }
+}
+
+.trail__caption {
+  max-width: 40rem;
+  margin: clamp(1rem, 2.5vw, 1.75rem) auto 0;
+  padding-inline: 0.25rem;
+  font-family: var(--font-body, Inter, system-ui, sans-serif);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  text-align: center;
+  text-wrap: pretty;
+  color: var(--muted, #a4a4ad);
+}
+.trail__caption a {
+  color: var(--accent-2, #ff6a60);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.trail__caption a:hover {
+  color: var(--text, #f5f5f7);
+}
+.trail__caption a:focus-visible {
+  outline: 2px solid var(--accent-2, #ff6a60);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

@@ -1,0 +1,1 @@
+[{ "_ASSUMPTION": "built from docs, not captured live", "name": "Bitcoin", "ticker": "btc", "network": "Mainnet", "memo": "False", "image": "bitcoin.svg", "minimum": 0.0005, "maximum": 5.0 }]

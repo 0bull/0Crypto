@@ -1,0 +1,57 @@
+---
+import { DOCS_PATH } from "../../site.config.ts";
+// Spec Part 4 item 19: what a customer can see on-chain. docs/security says the same.
+---
+
+<section id="privacy" class="section" aria-labelledby="privacy-title">
+  <div class="wrap">
+    <h2 id="privacy-title" class="section__title">Privacy, honestly</h2>
+    <p class="section__lede">
+      Every customer can look up their own payment on a block explorer. What else they can see depends on the mode you
+      run.
+    </p>
+
+    <div class="privacy">
+      <article class="privacy__card" aria-labelledby="privacy-watch">
+        <h3 id="privacy-watch" class="privacy__title">Watch mode</h3>
+        <dl class="privacy__list">
+          <div class="privacy__item privacy__item--yes">
+            <dt>Hidden</dt>
+            <dd>
+              Each invoice gets a fresh address from your wallet, so a customer never sees one address that holds all your
+              payments.
+            </dd>
+          </div>
+          <div class="privacy__item privacy__item--no">
+            <dt>Not hidden</dt>
+            <dd>
+              Payments land straight in your wallet. When you spend, your wallet merges inputs, so a customer who follows
+              their coins can see the other payments spent with them.
+            </dd>
+          </div>
+          <div class="privacy__item privacy__item--no">
+            <dt>No private hop</dt>
+            <dd>
+              The trail above needs privacy routing, and privacy routing needs routed mode. Watch-mode coins are never
+              routed, because the Worker holds no key for them.
+            </dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="privacy__card" aria-labelledby="privacy-routed">
+        <h3 id="privacy-routed" class="privacy__title">Routed mode</h3>
+        <p class="privacy__text">
+          Deposits are swept to one hot wallet per chain (EVM forwarders, Tron, Solana), and UTXO spends merge inputs. So
+          a customer who follows their own payment can see the hot wallet and other deposits until privacy routing moves
+          the funds.
+        </p>
+        <p class="privacy__text privacy__text--strong">Privacy routing reduces this. It does not remove it.</p>
+      </article>
+    </div>
+
+    <p class="section__more">
+      <a href={`${DOCS_PATH}security/`}>Read the security notes</a>
+    </p>
+  </div>
+</section>

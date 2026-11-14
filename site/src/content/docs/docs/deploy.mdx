@@ -1,0 +1,57 @@
+---
+title: Deploy 0Crypto
+description: Copy 0Crypto into your own Cloudflare account with one button.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+import { DEPLOY_URL } from '../../../site.config.ts';
+
+This page puts 0Crypto online in your Cloudflare account. You click a button and answer a few questions on Cloudflare's own screens.
+
+## Before you click
+
+You need the **Workers Paid** plan. In Cloudflare, open **Workers & Pages** and choose **Plans** to upgrade. Watching a payment reads block explorers and other blockchain services on every check, and the free plan allows far fewer of those outside calls per request than 0Crypto needs. Confirming payments and checking POS PINs also need more processing time per request than the free plan gives.
+
+## Deploy
+
+<Steps>
+
+1. Open the deploy button: <a href={DEPLOY_URL}>Deploy to Cloudflare</a>.
+
+2. Sign in to Cloudflare and to GitHub when asked. Cloudflare copies 0Crypto into your GitHub account so it can rebuild it later.
+
+3. On the **Deploy** screen, leave every field as it is. Each field has a short note. The ones for the seed, privacy routing and similar say "Leave blank" or "Leave as is". The shop name, webhook address and coins say you choose them later in the setup wizard. Basic setup needs nothing here.
+
+4. Keep the project name **0crypto**. The next guides refer to it.
+
+5. Press **Create and deploy** and wait. The first build takes a few minutes. Cloudflare creates the database and the queues for you.
+
+6. When it finishes, copy the address Cloudflare shows. It looks like `0crypto.your-name.workers.dev`.
+
+</Steps>
+
+:::caution
+The button only works with a public repository. If you copied 0Crypto to a private repository of your own, the button will refuse. Use the public copy.
+:::
+
+:::tip[You should now see]
+A green "Deployed" message on Cloudflare, and a Worker named **0crypto** under **Workers & Pages**. Opening its address shows a page asking for a setup code. If you see that page, continue to [Find your setup code](/docs/setup-code/).
+:::
+
+## Deploy by hand (developers)
+
+Use this if the Deploy button is not available, for example while the public copy of 0Crypto does not exist yet. You need a terminal, Node.js (the version in the repository's `.nvmrc`), and a Cloudflare account on the Workers Paid plan.
+
+<Steps>
+
+1. Clone your copy of the repository and open its folder.
+
+2. Run `npm ci`.
+
+3. Run `npx wrangler login` and sign in to Cloudflare in the browser window that opens.
+
+4. Run `npm run deploy:first`. It deploys the Worker, then applies the database migrations. Use `npm run deploy` for every later update.
+
+5. Open the Worker's address followed by `/admin`, for example `https://0crypto.your-name.workers.dev/admin`. The page asks for a setup code. Find it in the Worker's logs, as described in [Find your setup code](/docs/setup-code/), and continue from there.
+
+</Steps>

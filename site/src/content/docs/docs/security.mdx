@@ -1,0 +1,56 @@
+---
+title: Security and backups
+description: Who can move your money, what customers can see on the blockchain, and what to back up.
+---
+
+This page says plainly what 0Crypto protects and what it does not.
+
+## Who can move your funds
+
+**In watch mode,** nobody who gets into your gateway can move your coins. Your wallet holds the keys, and 0Crypto holds only a public key that can make addresses but cannot spend.
+
+**In routed mode** the keys live in your Worker. Anyone who takes over the Worker, your Cloudflare account or your seed phrase can move the funds. Ethereum chains, Tron and Solana have no watch mode, so using them means routed mode. Lightning is different: payments land in your own wallet and the gateway only has a receive-only connection.
+
+Whatever the mode, the Cloudflare account is the master key to your gateway. Turn on two-step verification there, keep the number of people with access small, and treat anyone who can read your Worker logs as someone who could claim or recover your gateway.
+
+## What a customer can see on the blockchain
+
+Be honest with yourself about this before you promise customers privacy.
+
+- Deposits are swept to one **hot wallet** per chain (Ethereum forwarders, Tron, Solana). A hot wallet is a wallet the gateway can spend from.
+- When 0Crypto spends Bitcoin, Litecoin or Dogecoin outputs, it can merge several inputs into one transaction, which links those deposits together.
+- So a customer who follows their own payment on a block explorer can see the hot wallet and the other deposits that are in it, until privacy routing moves the funds on.
+- [Privacy routing](/docs/advanced/privacy-routing/) reduces this. It does not remove it.
+
+In watch mode your coins stay at the addresses made from your wallet's public key. The customer can still follow them from there.
+
+## Sign-in
+
+Sign-in is by **passkey** only. There is no password to steal. Register at least two passkeys, on different devices. Actions that move money or change security, such as refunds, changing wallets and coins, creating or revoking API keys, showing or rotating the webhook secret, removing a passkey and setting the point-of-sale PIN, ask for your passkey again each time. You can sign out every device with **Sign out everywhere** on the **Passkeys** page, and removing a passkey signs your other devices out too.
+
+## Secrets
+
+- **Seed phrase (routed mode):** 24 words, written down offline on paper or metal, never in cloud notes, email or chat. Nobody can recover it for you. Never change it on a live gateway and never reuse it for another deployment.
+- **Webhook secret (`whsec_...`):** keep it on your server only. Rotate it on **API keys & webhooks** and update your server right away, because messages signed with the new secret fail your check until you do.
+- **API keys (`0c_live_...`):** keep them on your server only. Revoke one the moment you suspect it leaked.
+- **Provider keys:** RPC, TronGrid, TronSave and Solana keys should be Worker secrets, restricted by address or website where the provider allows.
+- **Lightning connection:** receive-only, always.
+
+## Back up
+
+Your invoices, payments and settings live in the gateway's database. It holds no private keys. Export it before every upgrade and on a schedule, with `npx wrangler d1 export DB --remote --output backup.sql`, and keep the file somewhere you control. It contains customer-related data.
+
+A database backup cannot recover funds. In routed mode only the seed phrase can. In watch mode, your wallet's own recovery words do that job, and you should have backed those up already.
+
+## Check this list now and then
+
+- Two or more passkeys on different devices.
+- Cloudflare account with two-step verification.
+- In routed mode: the seed phrase is on paper, offline, and you know where.
+- Hot wallets hold only what you could afford to lose. Without routing there is no cap, so withdraw regularly.
+- The Lightning connection is receive-only and no `lightning.spend_permission` alert is open.
+- A recent database export exists.
+
+## A legal note
+
+Run 0Crypto for **your own business only**. Running one gateway to accept money on behalf of other merchants makes you a custodian, which falls under money transmitter rules in many places (such as MSB rules in the US and MiCA in the EU). There is no multi-merchant mode, by design. Get advice for your own country.

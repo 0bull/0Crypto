@@ -1,0 +1,5 @@
+[
+  { "_ASSUMPTION": "built from docs, not captured live", "name": "Tether", "ticker": "usdt", "network": "ERC20", "memo": "False", "image": "tether.svg", "minimum": 10, "maximum": 100000 },
+  { "name": "Tether", "ticker": "usdt", "network": "TRC20", "memo": "False", "image": "tether.svg", "minimum": 10.5, "maximum": 100000 },
+  { "name": "Tether", "ticker": "usdt", "network": "Solana", "memo": "False", "image": "tether.svg", "minimum": 10, "maximum": 100000 }
+]

@@ -1,0 +1,21 @@
+/* POS layout. Tokens, cards, buttons and pills come from theme.css; page chrome from checkout.css. */
+.pos-form{display:flex;flex-direction:column;gap:16px}
+.pos-label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);min-width:0}
+.pos-input{height:48px;padding:0 14px;width:100%;background:rgba(0,0,0,.28);color:var(--text);border:0;border-radius:14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font:400 16px var(--font-body)}
+.pos-input:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+.pos-amount{height:68px;font-size:34px;text-align:right;letter-spacing:-.02em}
+.pos-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pos-go{height:56px;font-size:16px;width:100%}
+.pos-link{width:100%;height:44px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.pos-logout{width:100%;max-width:440px;margin:0}
+.pos-h2{font-size:20px;margin-bottom:6px}
+/* The keypad needs JS (pos.js adds .js to <html>); without it the amount is a plain text field. */
+.keypad{display:none}
+.js .keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.key{height:60px;font:600 22px var(--font-head)}
+.recent{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.recent-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:10px 0;border-top:1px solid rgba(255,255,255,.07)}
+.recent-row:first-child{border-top:0}
+.recent-row time{grid-column:1 / -1}
+.recent-amt{font-size:15px;overflow-wrap:anywhere}
+@media (max-width:420px){.pos-amount{font-size:30px}}

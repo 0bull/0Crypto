@@ -1,0 +1,88 @@
+---
+import { DOCS_PATH } from "../../site.config.ts";
+// Plain <details>: no script, keyboard and screen reader support come from the browser.
+---
+
+<section id="faq" class="section" aria-labelledby="faq-title">
+  <div class="wrap">
+    <h2 id="faq-title" class="section__title">Questions</h2>
+
+    <div class="faq">
+      <details class="faq__item">
+        <summary>Does 0Crypto hold my money?</summary>
+        <div class="faq__answer">
+          <p>
+            No. 0Crypto is software that runs in your own Cloudflare account, and nobody else operates it. In watch mode,
+            payments land in your wallet and the Worker cannot spend them. In routed mode, the keys live in your Worker,
+            which only you control.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq__item">
+        <summary>Do I need a terminal?</summary>
+        <div class="faq__answer">
+          <p>
+            Watch mode: no. You deploy, sign in and connect your wallet in the browser. Routed mode: yes, for setup. It
+            needs a seed phrase, a contract deployment on each EVM chain you enable, funded hot wallets and API keys, and the docs
+            walk you through each step.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq__item">
+        <summary>What does it cost?</summary>
+        <div class="faq__answer">
+          <p>
+            Cloudflare's Workers Paid plan, billed to you by Cloudflare. There is no 0Crypto fee and no cut of your
+            payments. Network fees still apply when coins move on-chain, and routed mode also pays gas for sweeps (EVM
+            chains and Solana), rented energy on Tron, and the swap or shield fees of privacy routing.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq__item">
+        <summary>What if I lose my passkey?</summary>
+        <div class="faq__answer">
+          <p>
+            On the sign-in page, choose “Lost your passkey or moved to a new domain?”. It asks for a fresh code from your
+            Worker's logs, the same way as the first setup, lets you create a new passkey, and signs every device out.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq__item">
+        <summary>Can I use my own domain?</summary>
+        <div class="faq__answer">
+          <p>
+            Yes. Add the domain to the Worker in Cloudflare. Passkeys belong to one domain, so sign in once more on the new
+            domain with “Lost your passkey or moved to a new domain?”. <a href={`${DOCS_PATH}custom-domain/`}
+              >How to add a domain</a
+            >.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq__item">
+        <summary>Is it legal for me?</summary>
+        <div class="faq__answer">
+          <p>
+            Run 0Crypto for your own business only. Accepting money on behalf of other merchants makes you a custodian,
+            which falls under money transmitter rules (for example MSB in the US) or crypto-asset service provider rules
+            (MiCA in the EU). There is no multi-merchant mode, by design. Get advice for your own jurisdiction.
+          </p>
+        </div>
+      </details>
+
+      <details class="faq__item">
+        <summary>Why does the Deploy button fail?</summary>
+        <div class="faq__answer">
+          <p>
+            Cloudflare's Deploy button can only copy a public GitHub repository. While the repository it points at is
+            private, Cloudflare stops with an error. You can still <a href={`${DOCS_PATH}deploy/#deploy-by-hand-developers`}>deploy by hand</a>.
+          </p>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>

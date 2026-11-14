@@ -1,0 +1,32 @@
+---
+title: Take a first payment
+description: Finish the wizard, set up your webhook and run a $1 test invoice.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+The last wizard step is **Done**. It gives you what your own website or shop needs. A **webhook** is a message 0Crypto sends to your website when a payment arrives, so your shop can mark the order as paid. This step also lets you try the gateway before a real customer does.
+
+<Steps>
+
+1. Under **Webhook secret**, press **Reveal secret** and confirm with your passkey. Copy the secret. It starts with `whsec_`. Your website uses it to check that a payment message really came from 0Crypto. Keep it somewhere private. You can reveal or rotate it later on the **API keys & webhooks** page.
+
+2. If your website listens for payment messages, enter its address in the **URL** field under **Webhook URL**, press **Save webhook URL**, then press **Send test event**. The button stays grey until a URL is saved. Skip this if you have no website yet; every step except the last has a **Skip for now** link.
+
+3. Press **Create a $1 test invoice**. A checkout page opens in a new tab.
+
+4. Pay the invoice from your own wallet, using the address and amount shown.
+
+5. Watch the checkout page. It updates when the payment is seen and again when it is confirmed.
+
+</Steps>
+
+:::note
+Bitcoin is not instant. A confirmation usually takes ten minutes or more. The first sighting of the payment is quicker.
+:::
+
+Press **Go to the dashboard** when you are done. The admin Overview keeps a "Finish setting up" checklist until you have a passkey, a wallet, a paid invoice, a webhook and a backup passkey.
+
+:::tip[You should now see]
+The checkout page switches to a "Paid" state, the invoice shows as paid in the admin, and the coins arrive in your own wallet. If you set a webhook URL, your website also received the event.
+:::

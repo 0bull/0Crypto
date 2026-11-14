@@ -1,0 +1,20 @@
+/* Always dark: the same values on both themes so a stale localStorage theme still renders dark. */
+:root,
+:root[data-theme="light"] {
+  --sl-color-accent-low: #3a1210;
+  --sl-color-accent: #ff453a;
+  --sl-color-accent-high: #ffb4ae;
+  --sl-color-black: #0b0b0e;
+  --sl-font: var(--font-body);
+  --sl-font-mono: var(--font-mono);
+}
+h1,
+h2,
+h3,
+.sl-markdown-content :is(h1, h2, h3) {
+  font-family: var(--font-head);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  /* Archivo's space is only .19em; at -.05em tracking the words touch without this. */
+  word-spacing: 0.1em;
+}

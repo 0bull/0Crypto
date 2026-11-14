@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+src/generated/
+public/lottie/
+# The root ignores every types/ directory; our hand-written ambient declarations are source.
+!src/types/

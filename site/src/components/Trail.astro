@@ -1,0 +1,53 @@
+---
+// The trail: customer → fresh address → private hop → you, with the on-chain link cut.
+// The markup is the final frame, so it reads the same with JS off, reduced motion, or a
+// failed load; src/scripts/trail.ts upgrades the visible copy to the Lottie animation.
+import landscapeSvg from "../generated/trail-landscape.svg?raw";
+import portraitSvg from "../generated/trail-portrait.svg?raw";
+import "../generated/trail-geometry.css";
+import "../styles/trail.css";
+
+const blocks = [
+  { layout: "landscape", svg: landscapeSvg },
+  { layout: "portrait", svg: portraitSvg },
+] as const;
+
+const labels = [
+  { node: "customer", name: "Customer", note: "pays the invoice" },
+  { node: "fresh", name: "Fresh address", note: "new for every invoice" },
+  { node: "hop", name: "Private hop", note: "Railgun or Monero" },
+  { node: "you", name: "You", note: "money, no trail" },
+] as const;
+---
+
+<figure id="trail" class="trail-figure">
+  {
+    blocks.map(({ layout, svg }) => (
+      <div class:list={["trail", `trail--${layout}`]}>
+        <div class="trail__static" set:html={svg} />
+        <div class="trail__player" data-src={`/lottie/trail-${layout}.json`} aria-hidden="true" />
+        <ol class="trail__labels">
+          {labels.map(({ node, name, note }) => (
+            <li class:list={["trail__label", `trail__label--${node}`]}>
+              <span class="trail__name">{name}</span>
+              <small class="trail__note">{note}</small>
+            </li>
+          ))}
+        </ol>
+        <p class="trail__cut"><span>No on-chain link</span></p>
+      </div>
+    ))
+  }
+  <figcaption class="trail__caption">
+    With privacy routing on, each payment lands on a fresh address and passes through a private hop before it
+    reaches you, which breaks the on-chain link between your customer and your wallet (<a href="#privacy"
+      >what it does and doesn’t hide</a
+    >).
+  </figcaption>
+</figure>
+
+<script>
+  import { initTrail } from "../scripts/trail.ts";
+
+  for (const root of document.querySelectorAll<HTMLElement>("figure#trail")) initTrail(root);
+</script>

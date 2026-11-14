@@ -1,0 +1,19 @@
+/* Brand tokens, copied from the gateway's public/theme.css. */
+:root {
+  --bg: #0b0b0e;
+  --text: #f5f5f7;
+  --muted: #a4a4ad;
+  --accent: #ff453a;
+  --accent-2: #ff6a60;
+  --paid: #7fe0a8;
+  --confirming: #ffd86b;
+  --btn-gradient: linear-gradient(#f4503f, #dd2c21 52%, #bd1e14);
+  --trail-coin: #ffd86b;
+  --trail-hop: #b48cff;
+  --trail-you: #7fe0a8;
+  --trail-snapped: rgba(255, 255, 255, 0.16);
+  --trail-line: rgba(255, 69, 58, 0.85);
+  --font-body: Inter, -apple-system, system-ui, sans-serif;
+  --font-head: Archivo, Inter, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}

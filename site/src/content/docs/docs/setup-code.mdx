@@ -1,0 +1,42 @@
+---
+title: Find your setup code
+description: Read the one-time setup code from your Cloudflare logs.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+The first time you open your new gateway, its setup page (titled **Claim your gateway**) asks for a **setup code**. The code proves that you own the Cloudflare account it runs in. Only people with access to your Cloudflare account can read your logs, so a stranger cannot get the code from there.
+
+The code is 6 words, for example "maple orbit …". Capital letters and extra spaces do not matter. It works once and is valid for 60 minutes.
+
+:::caution
+Treat the setup code like a password. Anyone who has a live code can claim your gateway until the code is used or expires. Do not share it, screenshot it or paste it into a chat.
+:::
+
+## Get the code
+
+<Steps>
+
+1. Open your gateway address in a browser and add `/admin` at the end. You see the setup page. Leave this tab open.
+
+2. In another tab, open the Cloudflare dashboard and go to **Workers & Pages**, then click **0crypto**, then **Logs**.
+
+3. Look for a line that starts with `0crypto setup code:`, followed by 6 words and "(valid 60 min)". The setup page repeats these directions in a box called **Where to find the code**. If the Logs tab is empty, go back to the setup page and press **Print a new code**, then look again.
+
+4. Type the 6 words into the box labelled **Setup code (6 words)**. Do not press anything else yet. The next guide, [Create your passkey](/docs/passkey/), picks up from here.
+
+</Steps>
+
+## If you missed the code or it expired
+
+Press **Print a new code** on the setup page. The page says "A new code was printed to your Worker logs." You can do this once every 2 minutes. If you press it sooner, the page says "A code was printed less than 2 minutes ago. Check your logs." Up to 3 codes stay valid at once, so pressing the button more than once is safe. Printing a fourth one cancels the oldest.
+
+:::note
+If you are comfortable with a terminal, `npx wrangler tail` shows the same log live. The dashboard route is enough for everyone else.
+:::
+
+You get 5 tries every 10 minutes. After that the page says "Too many wrong codes. Wait 10 minutes and try again."
+
+:::tip[You should now see]
+The 6 words from the logs sit in the **Setup code (6 words)** box on the setup page, ready for the next guide. If the page later says "That code is not valid or has expired. Check the latest code in your Worker logs.", check that you copied all 6 words, or print a new code.
+:::

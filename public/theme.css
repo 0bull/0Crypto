@@ -1,0 +1,45 @@
+/* Shared 0Crypto theme: checkout and admin. Self-hosted fonts only. */
+@font-face{font-family:Archivo;font-style:normal;font-weight:800;font-display:swap;src:url(/fonts/archivo-latin-800-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/inter-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/inter-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:Inter;font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/inter-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/jetbrains-mono-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/jetbrains-mono-latin-500-normal.woff2) format("woff2")}
+
+:root{
+  --bg:#0B0B0E;--text:#F5F5F7;--muted:#A4A4AD;--accent:#FF453A;--accent-2:#FF6A60;
+  --paid:#7FE0A8;--confirming:#FFD86B;--partial:#FF8A80;--grey:#8A8A93;
+  --font-body:Inter,-apple-system,system-ui,sans-serif;
+  --font-head:Archivo,Inter,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:radial-gradient(70% 45% at 50% 0,rgba(255,69,58,.2),rgba(0,0,0,0) 70%),var(--bg);background-repeat:no-repeat;min-height:100vh;color:var(--text);font:400 15px/1.5 var(--font-body);letter-spacing:-.24px}
+a{color:var(--accent-2)}a:hover{color:#FFB4AE}
+h1,h2,h3,.headline{font-family:var(--font-head);font-weight:800;letter-spacing:-.05em;line-height:1.05;margin:0}
+.mono{font-family:var(--font-mono);letter-spacing:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}.tiny{font-size:11px}
+
+.card{background:radial-gradient(120% 70% at 18% 0,rgba(255,255,255,.05),rgba(0,0,0,0) 60%),linear-gradient(rgba(36,33,39,.9),rgba(19,18,23,.94));border:1px solid rgba(255,255,255,.086);border-radius:28px;box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 -1px 0 rgba(255,106,96,.3),0 2px 4px rgba(0,0,0,.3),0 40px 80px -40px rgba(255,69,58,.3)}
+.well{background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);border-radius:16px}
+.btn{background:linear-gradient(#F4503F,#DD2C21 52%,#BD1E14);color:#FFF;border:0;border-radius:999px;box-shadow:inset 0 1px 0 rgba(255,255,255,.38),inset 0 -1px 0 rgba(90,0,0,.35),0 1px 2px rgba(0,0,0,.5),0 14px 30px -10px rgba(255,69,58,.55);font:600 14px var(--font-body);letter-spacing:-.24px;cursor:pointer}
+.btn2{background:rgba(255,255,255,.1);color:var(--text);border:0;border-radius:999px;box-shadow:inset 0 1px 0 rgba(255,255,255,.16);font:500 14px var(--font-body);letter-spacing:-.24px;cursor:pointer}
+.btn:hover,.btn:focus-visible{filter:brightness(1.08)}
+.btn2:hover,.btn2:focus-visible{background:rgba(255,255,255,.15)}
+.btn:focus-visible,.btn2:focus-visible,a:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+a.btn,a.btn2{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;height:48px;padding:0 22px}
+a.btn{color:#FFF}a.btn2{color:var(--text)}
+
+/* Status pills (admin lists, checkout status) */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:rgba(255,255,255,.08);color:var(--grey)}
+.pill-paid,.pill-confirmed{color:var(--paid);background:rgba(127,224,168,.12)}
+.pill-confirming,.pill-detected{color:var(--confirming);background:rgba(255,216,107,.12)}
+.pill-partial,.pill-partially_paid{color:var(--partial);background:rgba(255,138,128,.12)}
+.pill-awaiting,.pill-open,.pill-expired{color:var(--grey)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(255,69,58,.18);flex:none}
+.dot[data-s=paid],.dot[data-s=confirmed]{background:var(--paid);box-shadow:0 0 0 4px rgba(127,224,168,.18)}
+.dot[data-s=detected],.dot[data-s=confirming]{background:var(--confirming);box-shadow:0 0 0 4px rgba(255,216,107,.18)}
+.dot[data-s=partial]{background:var(--partial);box-shadow:0 0 0 4px rgba(255,138,128,.18)}
+.dot[data-s=expired]{background:var(--grey);box-shadow:0 0 0 4px rgba(138,138,147,.18)}

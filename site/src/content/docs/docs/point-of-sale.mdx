@@ -1,0 +1,38 @@
+---
+title: Sell in person with point of sale
+description: Take crypto at a counter or market stall by typing an amount and showing a QR code.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+**Point of sale** (POS) is a simple counter page for walk-in customers. You type an amount, press **Charge**, and the customer scans the checkout from your screen. It only creates invoices and shows the last 20 of them under **Recent**. It never shows addresses or balances, so it is safe to leave on a shared tablet.
+
+## Set it up
+
+<Steps>
+
+1. In your admin open **Point of sale**.
+
+2. In **Set a PIN**, type a **New PIN** and **Repeat PIN**, 8 to 32 digits, press **Set PIN** and confirm with your passkey. Changing it (**Change PIN**) or turning it off (**Disable PIN**) signs every POS device out.
+
+3. On the device at your counter, open `https://your-gateway/pos` and sign in with the PIN. A staff session lasts 12 hours.
+
+4. Or, as the owner, press **Open the POS** in the admin. That starts a 2 hour session with no PIN needed.
+
+</Steps>
+
+## Take a payment
+
+1. Type the amount and pick the currency.
+2. Optionally pick the coin. If you do not, the customer chooses.
+3. Press **Charge** and let the customer scan the code.
+
+If the chosen coin cannot start right away (for example the Lightning wallet does not answer), the customer lands on a page where they can try again or pick another coin.
+
+## Protect the PIN
+
+Without a PIN, only a signed-in admin can open the POS, so set one before using it on a shared device. Each address gets 5 PIN tries every 15 minutes. If more than 200 wrong tries arrive in an hour from anywhere, PIN sign-in is locked for everyone until the hour ends. Devices already signed in, and **Open the POS**, keep working. An alert appears on your Overview.
+
+:::tip[You should now see]
+Charging an amount shows a checkout with a QR code, and the new invoice appears under **Recent** on the POS page.
+:::

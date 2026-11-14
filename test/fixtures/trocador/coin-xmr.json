@@ -1,0 +1,1 @@
+[{ "_ASSUMPTION": "built from docs, not captured live", "name": "Monero", "ticker": "xmr", "network": "Mainnet", "memo": "False", "image": "monero.svg", "minimum": 0.01, "maximum": 400 }]
