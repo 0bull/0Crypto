@@ -5,13 +5,18 @@ import pins from "../../../contracts/factory-initcode.json";
 import { counterKey } from "../../../src/chains/registry";
 import { EVM_CHAINS, evmClient } from "../../../src/chains/evm/chains";
 import { hotAccount } from "../../../src/signing/evmkeys";
-import { factoryAddress, predictDeposit } from "../../../src/chains/evm/predict";
+import { factoryAddress, predictLegacyDeposit as predictDeposit } from "../../../src/chains/evm/predict";
+import { evmDepositSalt } from "../../../src/signing/addresses";
 import { getAsset } from "../../../src/core/assets";
 import { allocateIndex } from "../../../src/db/repo";
 import type { Env } from "../../../src/env";
 
 const SINK = "0x000000000000000000000000000000000000dEaD" as const;
 const SEED = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+// Worked out apart from the code (Python hashlib: BIP39 PBKDF2, BIP32 hardened m/7703'/60'/0', HMAC-SHA256 of the
+// tag "0crypto/evm-deposit-salt/v1" + uint32be(index)).
+const PIN0 = "0x1381d18b7ccb5ea1ee7a7052b0d1bf799fc727743bf49dd73688077d88f157c1";
+const PIN7 = "0x43d10b25e8cd85b4b16135c9d3615b6d5bf1b5226594e18f514573ae96298ca3";
 
 describe("deposit address prediction", () => {
   it("factoryAddress and predictDeposit match the forge-pinned values", () => {
@@ -29,6 +34,19 @@ describe("deposit address prediction", () => {
     expect(predictDeposit(f, 0)).not.toBe(predictDeposit(f, 1));
     expect(predictDeposit(f, 2 ** 31 - 1)).toMatch(/^0x[0-9a-fA-F]{40}$/);
     for (const bad of [-1, 1.5, 2 ** 31, Number.NaN]) expect(() => predictDeposit(f, bad)).toThrow();
+  });
+});
+
+describe("secret deposit salt", () => {
+  it("is pinned for the test seed (changing the tag or path would move every new deposit address)", () => {
+    expect(evmDepositSalt(SEED, 0)).toBe(PIN0);
+    expect(evmDepositSalt(SEED, 7)).toBe(PIN7);
+  });
+  it("is the same for a normalised seed, different per seed and index, and refuses bad indices", () => {
+    expect(evmDepositSalt(`  ${SEED.toUpperCase()} `, 7)).toBe(evmDepositSalt(SEED, 7));
+    expect(evmDepositSalt("legal winner thank year wave sausage worth useful legal winner thank yellow", 7)).not.toBe(evmDepositSalt(SEED, 7));
+    expect(evmDepositSalt(SEED, 7)).not.toBe(evmDepositSalt(SEED, 8));
+    for (const bad of [-1, 1.5, 2 ** 31, Number.NaN]) expect(() => evmDepositSalt(SEED, bad)).toThrow();
   });
 });
 

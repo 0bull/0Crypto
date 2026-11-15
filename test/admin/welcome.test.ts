@@ -92,6 +92,7 @@ describe("wizard: coins", () => {
     // Routed-mode coins are greyed out with a docs link.
     expect(html).toMatch(/name="asset:base:usdc"[^>]*disabled/);
     expect(html).toContain("Advanced: see docs");
+    expect(html).toContain("data-own-wallet"); // use a wallet only for 0Crypto
     expect(html).not.toMatch(/name="action"/);
     expect(html).toMatch(/<a[^>]*href="\/admin\/welcome\?step=done"[^>]*>Skip for now<\/a>/);
   });

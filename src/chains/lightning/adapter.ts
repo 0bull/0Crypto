@@ -39,6 +39,8 @@ interface Caps {
   ok: boolean;
   /** The connection also allows a spending method: it should be replaced by a receive-only one. */
   spend: boolean;
+  /** The wallet's node id (get_info pubkey, compressed secp256k1 hex), when it reports one: every invoice names it. */
+  node?: string;
 }
 
 /** Whole sats, rounded up: every NWC wallet accepts them (some refuse msat precision). */
@@ -83,7 +85,8 @@ export async function lightningCapabilities(env: Env, opts: NwcOptions = {}): Pr
   const info = await nwcRequest(c, "get_info", {}, { ...opts, encryption });
   const methods = info.methods;
   if (!Array.isArray(methods) || !methods.every((m) => typeof m === "string")) throw new NwcError("INVALID_RESPONSE", "get_info has no method list");
-  const caps: Caps = { ok: methods.includes("make_invoice") && methods.includes("lookup_invoice"), spend: methods.some((m) => /^(pay_|multi_)/.test(m)) };
+  const node = typeof info.pubkey === "string" && /^0[23][0-9a-f]{64}$/i.test(info.pubkey) ? info.pubkey.toLowerCase() : undefined;
+  const caps: Caps = { ok: methods.includes("make_invoice") && methods.includes("lookup_invoice"), spend: methods.some((m) => /^(pay_|multi_)/.test(m)), ...(node ? { node } : {}) };
   await env.KV.put(await capsKey(c), JSON.stringify(caps), { expirationTtl: caps.ok ? CAPS_OK_TTL_SEC : CAPS_REFUSED_TTL_SEC }).catch(() => {});
   if (!caps.ok)
     await recordAlert(env.DB, "lightning.config_error", "ln", "The NWC connection (NWC_URI) does not allow make_invoice and lookup_invoice: Lightning is off. Create a receive-only connection with both permissions.");
@@ -98,6 +101,18 @@ export async function lightningRefused(env: Env): Promise<boolean> {
     return (await readCaps(env, connOf(env)))?.ok === false;
   } catch {
     return false;
+  }
+}
+
+/**
+ * The node id the wallet reported at the last check (cached only, no relay call), or null when unknown. A customer can
+ * read it from any invoice they are shown and look it up on a Lightning explorer.
+ */
+export async function lightningNode(env: Env): Promise<string | null> {
+  try {
+    return (await readCaps(env, connOf(env)))?.node ?? null;
+  } catch {
+    return null;
   }
 }
 

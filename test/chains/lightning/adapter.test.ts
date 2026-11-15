@@ -2,7 +2,7 @@ import { applyD1Migrations, runDurableObjectAlarm, runInDurableObject, type D1Mi
 import { putPrice } from "../../prices/seed";
 import { env } from "cloudflare:workers";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { lightningAdapter, lightningRefused, roundUpToSat, testSocketFactory } from "../../../src/chains/lightning/adapter";
+import { lightningAdapter, lightningNode, lightningRefused, roundUpToSat, testSocketFactory } from "../../../src/chains/lightning/adapter";
 import * as nwcModule from "../../../src/chains/lightning/nwc";
 import { NwcError, NwcTimeout } from "../../../src/chains/lightning/nwc";
 import { chainConfigError, getAdapter } from "../../../src/chains/registry";
@@ -144,6 +144,16 @@ describe("createInvoice", () => {
       e.NWC_URI = old;
       await e.KV.delete(`nwc:caps:${WALLET_PK}:${getPublicKey(OTHER_SK)}`);
     }
+  });
+  it("remembers the node id get_info reports (lowercased), and nothing for a missing or malformed one", async () => {
+    expect(await lightningNode(e)).toBeNull();
+    wallet.pubkey = `03${"AB".repeat(32)}`;
+    await lightningAdapter(e).createInvoice(1_000n, "inv_x", 600);
+    expect(await lightningNode(e)).toBe(`03${"ab".repeat(32)}`);
+    await clearKv();
+    wallet.pubkey = "not a node id";
+    await lightningAdapter(e).createInvoice(1_000n, "inv_y", 600);
+    expect(await lightningNode(e)).toBeNull();
   });
   it("a connection that can also pay works, with an admin warning to use a receive-only one", async () => {
     wallet.methods = ["get_info", "make_invoice", "lookup_invoice", "pay_" + "invoice"];

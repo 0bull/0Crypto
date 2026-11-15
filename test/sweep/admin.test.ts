@@ -2,12 +2,14 @@ import { applyD1Migrations, type D1Migration } from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
 import { setupNetwork } from "@msw/cloudflare";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { decodeFunctionData, encodeAbiParameters, encodeFunctionData, keccak256, parseTransaction, type Hex } from "viem";
+import { decodeFunctionData, encodeFunctionData, keccak256, parseTransaction, type Hex } from "viem";
 import { getAsset } from "../../src/core/assets";
 import { preAuth, signedIn, type AdminTestSession } from "../admin-session";
 import { NEEDS_JS } from "../../src/admin/confirm";
 import { clearHealthMemo } from "../../src/chains/evm/health";
 import { hotAccount } from "../../src/signing/evmkeys";
+import { evmDepositSalt } from "../../src/signing/addresses";
+import { factoryAddress, predictForwarder } from "../../src/chains/evm/predict";
 import { recordAlert } from "../../src/db/alerts";
 import { getPayment, insertInvoice, insertPayment, type PaymentRow } from "../../src/db/repo";
 import type { Env } from "../../src/env";
@@ -84,8 +86,10 @@ const alertRows = (html: string) => html.split("<li data-alert-row").slice(1).ma
 let seq = 0;
 async function mk(o: Partial<PaymentRow> = {}): Promise<PaymentRow> {
   const n = seq++;
+  const index = o.derivation_index ?? 100 + n;
   const p: PaymentRow = {
-    id: `pay_swadm${n}`, invoice_id: "inv_swadm", asset: "base:usdc", chain: "base", address: `0x${(n + 1000).toString(16).padStart(40, "0")}`, derivation_index: 100 + n,
+    // The real forwarder of the index: the sweep only flushes addresses its seed made.
+    id: `pay_swadm${n}`, invoice_id: "inv_swadm", asset: "base:usdc", chain: "base", address: predictForwarder(factoryAddress(hot), evmDepositSalt(e.MASTER_SEED!, index)), derivation_index: index,
     reference: null, expected: 1_000_000n, price_e8: 10n ** 8n, rate_locked_until: 0, received: 1_000_000n, final: 1_000_000n, txids: [], status: "confirmed",
     created_at: Date.now(), detected_at: null, confirmed_at: Date.now(), credited_minor: 100n, credit_price_e8: 10n ** 8n, unexpected: null, ...o,
   };
@@ -246,7 +250,7 @@ describe("recover deposit", () => {
     const tx = parseTransaction(sw.arb.sent[0]!);
     expect(tx.chainId).toBe(42161);
     const { args } = decodeFunctionData({ abi: FACTORY_ABI, data: tx.data! });
-    expect(args![0]).toEqual([keccak256(encodeAbiParameters([{ type: "uint256" }], [77n])) as Hex]);
+    expect(args![0]).toEqual([evmDepositSalt(e.MASTER_SEED!, 77)]);
     expect((args![1] as string[]).length).toBe(3); // every registry token of arb: usdc, usdt and dai (not enabled)
     const row = await e.DB.prepare("SELECT id,chain,status,payment_ids FROM sweeps").first<Record<string, string>>();
     expect(row).toMatchObject({ chain: "arb", status: "pending" });

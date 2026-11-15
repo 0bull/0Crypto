@@ -61,7 +61,7 @@ const SIGNING_API: Record<string, string[]> = {
   "signing/tron": ["signTronTx"],
   "signing/solana": ["signSolanaTx"],
   "signing/utxo": ["buildUtxoSpend"],
-  "signing/addresses": ["tronHotAddress", "tronDepositAddress", "solHotAddress", "solDepositAddress", "evmHotAddress", "accountFromSeed"],
+  "signing/addresses": ["tronHotAddress", "tronDepositAddress", "solHotAddress", "solDepositAddress", "evmHotAddress", "evmDepositSalt", "accountFromSeed"],
   // NIP-47 client (chains/lightning/nwc.ts): a secret-free connection handle, request events, response decryption and
   // event verification. Nostr events move no money; the NWC secret never leaves the module.
   "signing/nostr": ["parseNwcUri", "nwcClientPubkey", "nwcRequestEvent", "nwcOpenResponse", "nostrEventValid"],

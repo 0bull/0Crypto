@@ -112,7 +112,7 @@ export class FakeSocket implements NwcSocket {
 /** A minimal wallet: make_invoice returns a stored invoice, lookup_invoice reports it from `invoices`. */
 export function defaultWallet(state: WalletState = new WalletState()): Handler {
   return (method, params) => {
-    if (method === "get_info") return { result: { alias: "fake", methods: state.methods } };
+    if (method === "get_info") return { result: { alias: "fake", methods: state.methods, ...(state.pubkey ? { pubkey: state.pubkey } : {}) } };
     if (method === "make_invoice") return { result: state.make(params) };
     if (method === "lookup_invoice") return { result: state.lookup(params) };
     return { error: { code: "NOT_IMPLEMENTED", message: "no" }, result: null };
@@ -121,6 +121,8 @@ export function defaultWallet(state: WalletState = new WalletState()): Handler {
 
 export class WalletState {
   methods = ["get_info", "make_invoice", "lookup_invoice"];
+  /** The node id get_info reports, if any. */
+  pubkey: string | undefined = undefined;
   invoices = new Map<string, { invoice: string; payment_hash: string; amount: number; created_at: number; expires_at: number; settled_at?: number; description: string }>();
   nextInvoice: { bolt11: string; hash: string } | null = null;
   requests: { method: string; params: Record<string, unknown> }[] = [];

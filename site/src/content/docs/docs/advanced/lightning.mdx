@@ -36,6 +36,15 @@ The customer picks Lightning and sees a QR code with a countdown of 20 minutes. 
 
 Lightning invoices have a fixed amount, so they cannot be underpaid. If a customer pays twice (an old and a new invoice), the invoice shows as overpaid. There are no Lightning refunds in 0Crypto, so send the difference back from your wallet.
 
+## What an invoice shows
+
+A Lightning invoice is not anonymous. Anyone who sees it, including the customer, can read the **node id** of the node that receives the payment, and often route hints that name that node's channel partners. They can look the node up on a Lightning explorer such as 1ML or Amboss. Settings shows your wallet's node id under **Coins** once Lightning has been checked.
+
+- **A wallet that runs a node just for you** (a self-hosted node, or a hosted node such as Alby Hub): the node id is yours. Every customer sees the same id, so they can tell they paid the same merchant, and the node's public channels and their sizes are visible to all.
+- **A shared custodial wallet**: the node belongs to the provider and is shared by many users, so it points to the provider, not to you. The provider holds your money and sees every payment.
+
+The payment itself does not show up on the Bitcoin blockchain, and the customer cannot see your balance or your other payments. Privacy routing does not touch Lightning, because the money never passes through 0Crypto.
+
 ## Try it first
 
 Create a $1 test invoice, pick Lightning and pay it from a different wallet. It should show as paid within about 30 seconds.

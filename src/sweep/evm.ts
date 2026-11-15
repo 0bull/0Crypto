@@ -1,5 +1,3 @@
-import { keccak_256 } from "@noble/hashes/sha3.js";
-import { bytesToHex } from "@noble/hashes/utils.js";
 import type { Address, Hex, PublicClient } from "viem";
 import { FACTORY_ABI } from "../chains/evm/abi";
 import { BUMP_DEN, BUMP_NUM, evmFeeQuote, MAX_COST_PERCENT, type Quote } from "../chains/evm/fees";
@@ -14,7 +12,7 @@ import type { Env } from "../env";
 import { getPriceE8 } from "../prices/cache";
 import type { Currency } from "../prices/kraken";
 import { allowedDestination, type Allowed } from "../routing/guard";
-import { evmHotAddress } from "../signing/addresses";
+import { evmDepositSalt, evmHotAddress } from "../signing/addresses";
 import { HOT_WALLET_BUSY, withHotNonce } from "../db/noncelease";
 import { signEvmTx } from "../signing/evm";
 import type { SweepResult } from "./cron";
@@ -34,15 +32,10 @@ const MAINNET_MIN_MINOR = 50_000n;
 const MAINNET_MAX_AGE_MS = 7 * DAY;
 export const FACTORY_NOT_DEPLOYED = "forwarder factory not deployed";
 
-/** CREATE2 salt of a payment's forwarder: keccak256(abi.encode(uint256(index))). */
-export function saltFor(index: number): Hex {
-  const word = new Uint8Array(32);
-  new DataView(word.buffer).setBigUint64(24, BigInt(index));
-  return `0x${bytesToHex(keccak_256(word))}`;
-}
+export const SALT_MISMATCH = "the deposit address does not come from this MASTER_SEED";
+
 
 export interface EvmSweepPlan {
-  salts: Hex[];
   tokens: Address[];
   /** The payments the batch covers, oldest confirmation first. */
   payments: PaymentRow[];
@@ -76,7 +69,7 @@ export function planEvmSweep(payments: PaymentRow[], chain: EvmChain, now: numbe
   if (due.length === 0) return null;
   const tokens = new Set<Address>();
   for (const p of due) for (const t of fullTokens(p, chain)) tokens.add(t);
-  return { salts: due.map((p) => saltFor(p.derivation_index)), tokens: [...tokens], payments: due };
+  return { tokens: [...tokens], payments: due };
 }
 
 /** A payment's own ERC-20 (none for a native asset), even if its asset was disabled since. */
@@ -129,16 +122,23 @@ interface Chain {
   env: { MASTER_SEED?: string };
   chain: EvmChain;
   factory: Address;
+  /** Each payment's forwarder salt (depositSalt), worked out once per run. Null: the address is not ours. */
+  salt: (p: PaymentRow) => Hex | null;
   /** Guard proofs for the hot wallet and the factory: the only destinations a sweep or recovery tx pays. */
   proofs: Allowed[];
 }
 
 async function open(env: Env, chain: EvmChain): Promise<Chain> {
-  const [{ evmClient }, hot, { factoryAddress }] = await Promise.all([import("../chains/evm/chains"), evmHotAddress(env), import("../chains/evm/predict")]);
+  const [{ evmClient }, hot, { factoryAddress, depositSalt }] = await Promise.all([import("../chains/evm/chains"), evmHotAddress(env), import("../chains/evm/predict")]);
   const account = { address: hot };
   const factory = factoryAddress(account.address);
   const proofs = await Promise.all([allowedDestination(env, chain, account.address), allowedDestination(env, chain, factory)]);
-  return { client: await evmClient(env, chain), account, env, chain, factory, proofs };
+  const salts = new Map<string, Hex | null>();
+  const salt = (p: PaymentRow): Hex | null => {
+    if (!salts.has(p.id)) salts.set(p.id, depositSalt(factory, p, evmDepositSalt(env.MASTER_SEED ?? "", p.derivation_index)));
+    return salts.get(p.id)!;
+  };
+  return { client: await evmClient(env, chain), account, env, chain, factory, salt, proofs };
 }
 
 type Causal = { name?: string; shortMessage?: string; message?: string; details?: string; cause?: unknown };
@@ -475,8 +475,13 @@ export async function runEvmSweep(env: Env, chain: EvmChain, now: number): Promi
   const c = await open(env, chain);
   if ((await reconcile(env, c, now)) > 0) return { status: "skipped", reason: "a sweep is pending", paymentIds: [] };
 
-  let plan = planEvmSweep(await listSweepCandidates(env.DB, chain, now, BATCH), chain, now);
+  // A candidate whose address no salt of this seed produces is parked (with an alert), never flushed blind.
+  const candidates = await listSweepCandidates(env.DB, chain, now, BATCH);
+  const foreign = candidates.filter((p) => c.salt(p) === null);
+  if (foreign.length > 0) await failPayments(env, chain, foreign, now, SALT_MISMATCH);
+  let plan = planEvmSweep(candidates.filter((p) => c.salt(p) !== null), chain, now);
   if (!plan) return { status: "idle", paymentIds: [] };
+  const saltsOf = (ps: PaymentRow[]): Hex[] => ps.map((p) => c.salt(p)!);
 
   // Gas is not worth spending on a small, fresh batch on mainnet.
   if (chain === "eth") {
@@ -486,7 +491,7 @@ export async function runEvmSweep(env: Env, chain: EvmChain, now: number): Promi
       return { status: "idle", reason: "below the mainnet threshold", paymentIds: [] };
   }
 
-  let gas = await estimate(c, plan.salts, plan.tokens);
+  let gas = await estimate(c, saltsOf(plan.payments), plan.tokens);
   if (gas === "revert") {
     // Estimate each payment's full list on its own first. If any passes, sweep those and probe nothing (the blocked
     // ones are re-checked next run). If none passes, probe own-token lists one payment at a time (a blacklisted
@@ -495,7 +500,7 @@ export async function runEvmSweep(env: Env, chain: EvmChain, now: number): Promi
     const blocked: PaymentRow[] = [];
     for (const p of plan.payments) {
       const one = planEvmSweep([p], chain, now)!;
-      ((plan.payments.length > 1 ? await estimate(c, one.salts, one.tokens) : "revert") === "revert" ? blocked : good).push(p);
+      ((plan.payments.length > 1 ? await estimate(c, saltsOf(one.payments), one.tokens) : "revert") === "revert" ? blocked : good).push(p);
     }
     if (good.length > 0) {
       // Starvation guard: a blocked payment waiting over 24h gets its own-token probe even though healthy ones keep
@@ -506,16 +511,16 @@ export async function runEvmSweep(env: Env, chain: EvmChain, now: number): Promi
       if (stuck && now - age(stuck) > DAY) {
         const own = ownTokens(stuck);
         const same = own.length === planEvmSweep([stuck], chain, now)!.tokens.length;
-        const g = same ? "revert" : await estimate(c, [saltFor(stuck.derivation_index)], own);
+        const g = same ? "revert" : await estimate(c, saltsOf([stuck]), own);
         if (g === "revert") await failPayments(env, chain, [stuck], now, "flush estimate reverted");
-        else alone = { plan: { salts: [saltFor(stuck.derivation_index)], tokens: own, payments: [stuck] }, gas: g };
+        else alone = { plan: { tokens: own, payments: [stuck] }, gas: g };
       }
       if (alone) {
         plan = alone.plan;
         gas = alone.gas;
       } else {
         plan = planEvmSweep(good, chain, now)!;
-        gas = await estimate(c, plan.salts, plan.tokens);
+        gas = await estimate(c, saltsOf(plan.payments), plan.tokens);
         if (gas === "revert") return { status: "failed", reason: "flush estimate reverted", paymentIds: good.map((p) => p.id) };
       }
     } else {
@@ -525,13 +530,13 @@ export async function runEvmSweep(env: Env, chain: EvmChain, now: number): Promi
         const own = ownTokens(p);
         // Same list as the full one: nothing to gain from a second estimate.
         const same = own.length === planEvmSweep([p], chain, now)!.tokens.length;
-        const g = same ? "revert" : await estimate(c, [saltFor(p.derivation_index)], own);
+        const g = same ? "revert" : await estimate(c, saltsOf([p]), own);
         if (g === "revert") {
           bad.push(p);
           continue;
         }
         // One fallback payment per tx (only one sweep is pending per chain; the next goes in a later run).
-        found = { plan: { salts: [saltFor(p.derivation_index)], tokens: own, payments: [p] }, gas: g };
+        found = { plan: { tokens: own, payments: [p] }, gas: g };
         break;
       }
       if (bad.length > 0) await failPayments(env, chain, bad, now, "flush estimate reverted");
@@ -545,7 +550,7 @@ export async function runEvmSweep(env: Env, chain: EvmChain, now: number): Promi
     const why = await tooExpensive(env, plan.payments, q.cost, now);
     if (why) return { status: "skipped", reason: why, paymentIds: [] };
   }
-  return send(env, c, "sweep", plan.payments.map((p) => p.id), plan.salts, plan.tokens, q, now, true);
+  return send(env, c, "sweep", plan.payments.map((p) => p.id), saltsOf(plan.payments), plan.tokens, q, now, true);
 }
 
 /**
@@ -566,7 +571,9 @@ export async function recoverDeposit(env: Env, payment: PaymentRow, chain: EvmCh
   if (!(await evmHealth(env, chain)).factoryDeployed) return { status: "skipped", reason: FACTORY_NOT_DEPLOYED, paymentIds: [] };
   const c = await open(env, chain);
   if ((await reconcile(env, c, now)) > 0 || (await pendingCount(env.DB, chain)) > 0) return { status: "skipped", reason: "a sweep is pending", paymentIds: [] };
-  const salts = [saltFor(payment.derivation_index)];
+  const salt = c.salt(payment);
+  if (salt === null) return { status: "failed", reason: SALT_MISMATCH, paymentIds: [payment.id] };
+  const salts = [salt];
   let tokens: Address[];
   if (mode === "own") {
     // The payment's own asset on the recovery chain (same symbol): a wrong-chain deposit is usually that very token.

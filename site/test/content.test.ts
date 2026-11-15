@@ -22,6 +22,7 @@ export const PAGES: { slug: string; task: boolean }[] = [
   { slug: "advanced/lightning", task: true },
   { slug: "advanced/privacy-routing", task: true },
   { slug: "security", task: false },
+  { slug: "privacy", task: false },
   { slug: "upgrading", task: true },
   { slug: "troubleshooting", task: false },
 ];
@@ -92,7 +93,15 @@ describe("page specifics", () => {
   it("passkey quotes the real last-passkey text", () => {
     expect(read("passkey")).toContain("You can't remove your only passkey");
   });
-  it("security states the privacy trade-off", () => {
+  it("privacy covers every mode and points at the separate-wallet advice", () => {
+  const p = read("privacy");
+  for (const h of ["## Watch mode", "## Routed mode", "## With privacy routing", "## Lightning", "## Refunds"]) expect(p).toContain(h);
+  expect(p).toContain("./wallet.mdx#use-a-wallet-only-for-0crypto");
+  expect(p).toContain("./advanced/lightning.mdx#what-an-invoice-shows");
+  expect(read("wallet")).toContain("## Use a wallet only for 0Crypto");
+  expect(read("advanced/lightning")).toContain("## What an invoice shows");
+});
+it("security states the privacy trade-off", () => {
     const s = read("security");
     for (const t of ["hot wallet", "merge", "reduces"]) expect(s).toContain(t);
   });

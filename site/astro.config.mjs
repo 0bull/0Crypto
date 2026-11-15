@@ -52,6 +52,7 @@ export default defineConfig({
           items: [
             { slug: "docs/custom-domain" },
             { slug: "docs/security" },
+            { slug: "docs/privacy" },
             { slug: "docs/upgrading" },
             { slug: "docs/troubleshooting" },
           ],

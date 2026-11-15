@@ -20,16 +20,16 @@ import { assertValidMnemonic } from "../core/mnemonic";
 // ---- Tron: m/44'/195'/0'/0/i deposits, m/44'/195'/1'/0/0 hot ----
 export type TronKey = { priv: Uint8Array; address: string };
 
-// PBKDF2 (2048 rounds) runs once per normalised seed per isolate; only account-level branches are kept, never the master key.
-const tronBranches = new Map<string, HDKey>();
+// PBKDF2 (2048 rounds) runs once per normalised seed and path per isolate; only branch keys are kept, never the master key.
+const branches32 = new Map<string, HDKey>();
 
-function tronBranch(seed: string, path: string): HDKey {
+function bip32Branch(seed: string, path: string): HDKey {
   const m = assertValidMnemonic(seed);
   const key = `${path}:${m}`;
-  let b = tronBranches.get(key);
+  let b = branches32.get(key);
   if (!b) {
     b = HDKey.fromMasterSeed(mnemonicToSeedSync(m)).derive(path);
-    tronBranches.set(key, b);
+    branches32.set(key, b);
   }
   return b;
 }
@@ -43,12 +43,12 @@ function tronKeyAt(account: HDKey, i: number): TronKey {
 /** Deposit key m/44'/195'/0'/0/i. */
 export function tronDepositKey(seed: string, i: number): TronKey {
   if (!Number.isInteger(i) || i < 0 || i >= 0x80000000) throw new Error("derivation index out of range");
-  return tronKeyAt(tronBranch(seed, "m/44'/195'/0'/0"), i);
+  return tronKeyAt(bip32Branch(seed, "m/44'/195'/0'/0"), i);
 }
 
 /** Hot wallet key m/44'/195'/1'/0/0. */
 export function tronHotKey(seed: string): TronKey {
-  return tronKeyAt(tronBranch(seed, "m/44'/195'/1'/0"), 0);
+  return tronKeyAt(bip32Branch(seed, "m/44'/195'/1'/0"), 0);
 }
 
 /**
@@ -147,4 +147,19 @@ export function utxoSeedAccount(mnemonic: string, chain: UtxoChain): HDKey {
   const net = UTXO_NETWORKS[chain];
   const root = HDKey.fromMasterSeed(mnemonicToSeedSync(assertValidMnemonic(mnemonic)), net.bip32);
   return root.derive(net.path);
+}
+
+// ---- EVM deposit salts ----
+
+/** BIP32 path of the salt key: purpose 7703' is no wallet standard, so this key never holds or signs for funds. */
+const EVM_SALT_PATH = "m/7703'/60'/0'";
+
+/**
+ * The HMAC key behind EVM deposit forwarder salts (evmDepositSalt in ./addresses). It spends nothing: it only keeps
+ * deposit addresses from being computed by anyone without MASTER_SEED.
+ */
+export function evmSaltKey(seed: string): Uint8Array {
+  const priv = bip32Branch(seed, EVM_SALT_PATH).privateKey;
+  if (!priv) throw new Error("no private key");
+  return priv;
 }

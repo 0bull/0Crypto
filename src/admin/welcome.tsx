@@ -11,6 +11,7 @@ import {
   assetField,
   CHAIN_LABEL,
   DOCS_URL,
+  OwnWalletNote,
   KEPT_ON,
   lockedCoin,
   firstAddresses,
@@ -131,6 +132,7 @@ function CoinsStep(v: CoinsView) {
         Paste each wallet's account extended public key (xpub, zpub, Ltub, dgub) and tick the coins to accept. The gateway only watches addresses; it
         never holds these coins' keys.
       </p>
+      <OwnWalletNote />
       {v.saved ? <Flash kind="ok">Wallets and coins saved.</Flash> : null}
       <form method="post" action="/admin/welcome/coins" class="form" data-passkey-confirm="settings.wallets">
         <Csrf token={v.csrf} />

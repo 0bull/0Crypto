@@ -13,6 +13,16 @@ import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 Never paste your seed phrase, recovery words or a private key (`xprv`, `zprv`). 0Crypto never asks for them in watch mode.
 :::
 
+## Use a wallet only for 0Crypto
+
+In watch mode customers pay straight into your wallet. Every payment address is public on the blockchain, so a customer can look up the one they paid on a block explorer and follow what happens to it next. Make a new wallet (or a new account in your wallet app) just for 0Crypto, and do not use it for anything else. Three reasons:
+
+- **Spending links payments.** When you send coins from this wallet, it usually combines several payments in one transaction and sends the rest back to itself as change. Any customer who follows their payment sees the others it was spent with, their amounts and the change. A wallet used only for the shop shows only shop payments, never your savings or your other payments.
+- **Your own history stays out of it.** If the key belongs to your everyday wallet, a customer who follows their payment can end up at your other addresses, your balance and where you send money.
+- **No address is handed out twice.** 0Crypto gives out the wallet's receive addresses in order, starting at the first one. If you also receive money in that wallet yourself, your wallet app can show the same address that 0Crypto gives a customer.
+
+When you move money out, use your wallet's coin control (Sparrow and Electrum have it) to spend one payment at a time, and send it to an address that does not lead back to you. If you need customers to be unable to follow the money at all, use [privacy routing](./advanced/privacy-routing.mdx) instead of watch mode. [What a customer can see](./privacy.mdx) compares the modes.
+
 ## Copy the key from your wallet
 
 <Tabs>

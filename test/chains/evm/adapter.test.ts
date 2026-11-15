@@ -4,7 +4,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { getAdapter } from "../../../src/chains/registry";
 import { clearChainIdMemo } from "../../../src/chains/evm/config";
 import { hotAccount } from "../../../src/signing/evmkeys";
-import { factoryAddress, predictDeposit } from "../../../src/chains/evm/predict";
+import { factoryAddress, legacyDepositSalt, predictForwarder } from "../../../src/chains/evm/predict";
+import { evmDepositSalt } from "../../../src/signing/addresses";
 import { getAsset } from "../../../src/core/assets";
 import type { DepositTarget } from "../../../src/core/types";
 import type { Env } from "../../../src/env";
@@ -335,8 +336,10 @@ describe("evm adapter wiring", () => {
   it("deriveAddress is the predicted forwarder of the hot wallet's factory", async () => {
     const a = getAdapter(mkEnv(), "base");
     const factory = factoryAddress(hotAccount({ MASTER_SEED: SEED }).address);
-    expect(await a.deriveAddress(0)).toBe(predictDeposit(factory, 0));
-    expect(await a.deriveAddress(5)).toBe(predictDeposit(factory, 5));
+    expect(await a.deriveAddress(0)).toBe(predictForwarder(factory, evmDepositSalt(SEED, 0)));
+    expect(await a.deriveAddress(5)).toBe(predictForwarder(factory, evmDepositSalt(SEED, 5)));
+    // never the legacy keccak256(index) salt: from one address nobody can compute the next
+    expect(await a.deriveAddress(5)).not.toBe(predictForwarder(factory, legacyDepositSalt(5)));
     expect(await a.deriveAddress(5)).not.toBe(await a.deriveAddress(6));
     // same index, same address on every chain
     expect(await getAdapter(mkEnv({ EVM_RPC_ARB: "https://rpc.test/arb" }), "arb").deriveAddress(5)).toBe(await a.deriveAddress(5));

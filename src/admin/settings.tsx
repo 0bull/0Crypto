@@ -23,6 +23,39 @@ type Ctx = Context<AdminEnv>;
 export type Utxo = "btc" | "ltc" | "doge";
 
 export const DOCS_URL = "https://github.com/0bull/0Crypto/blob/main/docs/deploy.md";
+/** Why watch mode wants a wallet of its own (site docs, read on GitHub until the docs site is hosted). */
+export const WALLET_DOCS_URL = "https://github.com/0bull/0Crypto/blob/main/site/src/content/docs/docs/wallet.mdx#use-a-wallet-only-for-0crypto";
+
+/**
+ * Watch mode pays customers straight into the merchant's wallet, so every customer can look at what that wallet holds
+ * and spends. Shown wherever an xpub is entered (wizard and Settings).
+ */
+export const LIGHTNING_DOCS_URL = "https://github.com/0bull/0Crypto/blob/main/site/src/content/docs/docs/advanced/lightning.mdx#what-an-invoice-shows";
+
+/** Every Lightning invoice names the receiving node: say which one, so the merchant knows what customers can look up. */
+export function LightningNodeNote(props: { node: string | null }) {
+  return (
+    <p class="muted small" data-ln-node>
+      Every Lightning invoice names the node that receives it
+      {props.node ? (
+        <>
+          : <span class="mono">{props.node}</span>
+        </>
+      ) : null}
+      . A customer can look it up on a Lightning explorer. If your wallet runs a node just for you, that node points to you.{" "}
+      <a href={LIGHTNING_DOCS_URL}>What an invoice shows</a>
+    </p>
+  );
+}
+
+export function OwnWalletNote() {
+  return (
+    <p class="muted small" data-own-wallet>
+      <strong>Use a wallet made only for 0Crypto</strong>, not one you use for anything else. A customer can look up the address they paid on a
+      block explorer and follow whatever that wallet later spends with it. <a href={WALLET_DOCS_URL}>Why this matters</a>
+    </p>
+  );
+}
 export const PUBLIC_URL_NOTE = "Moving to a new domain? Open the gateway on the new domain and use “Lost your passkey or moved?”";
 /** While a Wrangler var pins PUBLIC_URL, recovery on another origin is refused (rp.ts): only the var can move it. */
 export const PUBLIC_URL_PINNED_NOTE = "PUBLIC_URL is set by a Wrangler var, which wins over this page. To move to a new domain, change the var.";
@@ -130,6 +163,8 @@ type View = {
   pinned: boolean;
   used: Set<string>;
   firstAddresses?: Partial<Record<Utxo, string>>;
+  /** The Lightning wallet's node id from the last connection check, when known. */
+  lnNode?: string | null;
   error?: { section: "shop" | "wallets"; message: string };
   notice?: string;
   /** Values to show instead of the stored ones (a refused form keeps what was typed). */
@@ -199,6 +234,7 @@ function SettingsPage(v: View) {
               );
             })}
           </div>
+          {stored.has("ln:btc") ? <LightningNodeNote node={v.lnNode ?? null} /> : null}
         </Panel>
 
         <Panel title="Wallets">
@@ -206,6 +242,7 @@ function SettingsPage(v: View) {
             Paste each wallet's account extended public key (xpub, zpub, Ltub, dgub). The gateway only watches addresses; it never holds these coins'
             keys.
           </p>
+          <OwnWalletNote />
           {CHAINS.map((ch) => {
             const used = v.used.has(ch.chain);
             const addr = v.firstAddresses?.[ch.chain];
@@ -251,10 +288,12 @@ function SettingsPage(v: View) {
 async function render(c: Ctx, status: 200 | 400 | 403, o: Omit<View, "env" | "csrf" | "pinned" | "used"> & { env?: Env } = {}) {
   const env = o.env ?? c.env;
   const used = await usedChains(c.env.DB);
+  // Cached check only (no relay call); the module loads on demand like the rest of the Lightning code.
+  const lnNode = env.NWC_URI ? await (await import("../chains/lightning/adapter")).lightningNode(env) : null;
   return adminPage(
     c,
     { title: "Settings", active: "settings" },
-    <SettingsPage {...o} env={env} csrf={c.get("csrf")} pinned={publicUrlPinned(c.env)} used={used} firstAddresses={o.firstAddresses ?? firstAddresses(env)} />,
+    <SettingsPage {...o} env={env} csrf={c.get("csrf")} pinned={publicUrlPinned(c.env)} used={used} lnNode={lnNode} firstAddresses={o.firstAddresses ?? firstAddresses(env)} />,
     status,
   );
 }

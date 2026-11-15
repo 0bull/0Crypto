@@ -8,13 +8,14 @@ import worker from "../../src/index";
 import { clearChainIdMemo } from "../../src/chains/evm/config";
 import { clearHealthMemo } from "../../src/chains/evm/health";
 import { hotAccount } from "../../src/signing/evmkeys";
-import { factoryAddress } from "../../src/chains/evm/predict";
+import { depositSalt, factoryAddress, legacyDepositSalt, predictForwarder } from "../../src/chains/evm/predict";
+import { evmDepositSalt } from "../../src/signing/addresses";
 import { getAsset } from "../../src/core/assets";
 import { recordAlert } from "../../src/db/alerts";
 import { step } from "../../src/core/state";
 import { getInvoice, getPayment, insertInvoice, insertPayment, type InvoiceRow, type PaymentRow } from "../../src/db/repo";
 import type { Env } from "../../src/env";
-import { errText, planEvmSweep, recoverDeposit, runEvmSweep, saltFor } from "../../src/sweep/evm";
+import { errText, planEvmSweep, recoverDeposit, runEvmSweep, SALT_MISMATCH } from "../../src/sweep/evm";
 import { runSweeps } from "../../src/sweep/cron";
 import { emptyState, evmRpc, type RpcState } from "../evm-rpc";
 import { offline } from "../offline";
@@ -26,6 +27,7 @@ const URL_OF = { base: "https://rpc.test/base", eth: "https://rpc.test/eth", bsc
 const saved = { ENABLED_ASSETS: e.ENABLED_ASSETS, EVM_RPC_BASE: e.EVM_RPC_BASE, EVM_RPC_ETH: e.EVM_RPC_ETH, EVM_RPC_BSC: e.EVM_RPC_BSC, EVM_RPC_ARB: e.EVM_RPC_ARB, EVM_RPC_POLYGON: e.EVM_RPC_POLYGON };
 const hot = hotAccount(e).address;
 const factory = factoryAddress(hot);
+const salt = (i: number): Hex => evmDepositSalt(e.MASTER_SEED!, i);
 const USDC_BASE = getAsset("base:usdc").contract as Address;
 const DAI_BASE = getAsset("base:dai").contract as Address;
 const USDC_ARB = getAsset("arb:usdc").contract as Address;
@@ -80,8 +82,10 @@ afterAll(() => {
 let seq = 0;
 function pay(o: Partial<PaymentRow> = {}): PaymentRow {
   const n = seq++;
+  const index = o.derivation_index ?? n;
   return {
-    id: `pay_sw${n}`, invoice_id: "inv_sweep", asset: "base:usdc", chain: "base", address: `0x${n.toString(16).padStart(40, "0")}`, derivation_index: n,
+    // The real forwarder of the index (secret salt), as the adapter makes it: the sweep only flushes addresses it can derive.
+    id: `pay_sw${n}`, invoice_id: "inv_sweep", asset: "base:usdc", chain: "base", address: predictForwarder(factory, salt(index)), derivation_index: index,
     reference: null, expected: 1_000_000n, price_e8: 10n ** 8n, rate_locked_until: 0, received: 1_000_000n, final: 1_000_000n, txids: [], status: "confirmed",
     created_at: Date.now() - 2 * HOUR, detected_at: null, confirmed_at: Date.now() - HOUR, credited_minor: 100n, credit_price_e8: 10n ** 8n, unexpected: null,
     swept_at: null, sweep_tx: null, sweep_error: null, sweep_retry_at: null, ...o,
@@ -92,7 +96,7 @@ async function mk(o: Partial<PaymentRow> = {}): Promise<PaymentRow> {
   await insertPayment(e.DB, p);
   return p;
 }
-const salt = (i: number): Hex => keccak256(encodeAbiParameters([{ type: "uint256" }], [BigInt(i)]));
+const legacy = (i: number): Hex => keccak256(encodeAbiParameters([{ type: "uint256" }], [BigInt(i)]));
 const sweeps = async () => (await e.DB.prepare("SELECT * FROM sweeps ORDER BY created_at, id").all<Record<string, string | number | null>>()).results;
 const alerts = async () => (await e.DB.prepare("SELECT * FROM alerts").all<Record<string, string | number | null>>()).results;
 /** The signer of a raw tx: deployAndFlush only succeeds when it is the factory's sink, the hot wallet. */
@@ -104,23 +108,17 @@ const decodeSent = (raw: Hex) => {
 };
 
 describe("planEvmSweep", () => {
-  it("batches confirmed unswept payments of the chain: salts and the distinct token contracts", () => {
+  it("batches confirmed unswept payments of the chain: the payments and the distinct token contracts", () => {
     const ps = [pay(), pay(), pay(), pay({ status: "confirming" })];
     const plan = planEvmSweep(ps, "base")!;
-    expect(plan.salts).toEqual(ps.slice(0, 3).map((p) => salt(p.derivation_index)));
     expect(plan.tokens).toEqual([USDC_BASE]);
     expect(plan.payments.map((p) => p.id)).toEqual(ps.slice(0, 3).map((p) => p.id));
-  });
-
-  it("uses the salt keccak256(abi.encode(uint256(index)))", () => {
-    expect(saltFor(0)).toBe(keccak256(`0x${"00".repeat(32)}`));
-    expect(saltFor(5)).toBe(salt(5));
   });
 
   it("takes at most 50 payments, oldest first", () => {
     const ps = Array.from({ length: 60 }, (_, i) => pay({ confirmed_at: 1_000_000 - i }));
     const plan = planEvmSweep(ps, "base")!;
-    expect(plan.salts).toHaveLength(50);
+    expect(plan.payments).toHaveLength(50);
     expect(plan.payments[0]!.id).toBe(ps[59]!.id);
   });
 
@@ -940,6 +938,50 @@ describe("chain id per RPC URL in the sweeper", () => {
       e.EVM_RPC_BASE = saved;
       warn.mockRestore();
     }
+  });
+});
+
+describe("deposit salts", () => {
+  it("the legacy salt is keccak256(abi.encode(uint256(index))); the secret salt is neither that nor guessable from it", () => {
+    expect(legacyDepositSalt(0)).toBe(keccak256(`0x${"00".repeat(32)}`));
+    expect(legacyDepositSalt(5)).toBe(legacy(5));
+    expect(salt(5)).not.toBe(legacy(5));
+    expect(salt(5)).not.toBe(salt(6));
+    expect(salt(5)).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it("depositSalt picks the salt whose forwarder is the payment's address, or null for an address this seed never made", () => {
+    const fresh = { address: predictForwarder(factory, salt(9)), derivation_index: 9 };
+    const old = { address: predictForwarder(factory, legacy(9)), derivation_index: 9 };
+    expect(depositSalt(factory, fresh, salt(9))).toBe(salt(9));
+    expect(depositSalt(factory, { ...fresh, address: fresh.address.toLowerCase() }, salt(9))).toBe(salt(9));
+    expect(depositSalt(factory, old, salt(9))).toBe(legacy(9));
+    expect(depositSalt(factory, { address: `0x${"11".repeat(20)}`, derivation_index: 9 }, salt(9))).toBeNull();
+  });
+
+  it("a payment made before secret salts is still swept, with its legacy salt", async () => {
+    const a = await mk({ address: predictForwarder(factory, legacy(70)), derivation_index: 70 });
+    const b = await mk();
+    const r = await runEvmSweep(e, "base", now());
+    expect(r.status).toBe("sent");
+    expect(r.paymentIds.sort()).toEqual([a.id, b.id].sort());
+    expect(decodeSent(sw.base.sent[0]!).salts).toEqual([legacy(70), salt(b.derivation_index)]);
+  });
+
+  it("a payment whose address no salt of this seed makes is parked with an alert and never flushed", async () => {
+    const odd = await mk({ address: `0x${"22".repeat(20)}` });
+    const ok = await mk();
+    const r = await runEvmSweep(e, "base", now());
+    expect(r.status).toBe("sent");
+    expect(r.paymentIds).toEqual([ok.id]);
+    expect(decodeSent(sw.base.sent[0]!).salts).toEqual([salt(ok.derivation_index)]);
+    const parked = (await getPayment(e.DB, odd.id))!;
+    expect(parked.swept_at).toBeNull();
+    expect(parked.sweep_error).toBe(SALT_MISMATCH);
+    expect(parked.sweep_retry_at).toBeGreaterThan(now());
+    expect((await alerts()).some((a) => a.kind === "sweep.payment_failed" && String(a.detail).includes(odd.id))).toBe(true);
+    const rec = await recoverDeposit(e, odd, "arb", now());
+    expect(rec).toMatchObject({ status: "failed", reason: SALT_MISMATCH });
   });
 });
 

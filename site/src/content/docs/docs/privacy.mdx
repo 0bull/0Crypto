@@ -1,0 +1,56 @@
+---
+title: What a customer can see
+description: What a paying customer can learn about your wallet, your balance and your other customers, for each way of accepting crypto.
+---
+
+Blockchains are public. A customer always knows the address they paid, the amount and the time, and anyone can look those up on a block explorer. What they can learn **after that** depends on how you accept each coin. This page says it plainly, so you can choose before you promise anyone privacy.
+
+## The short version
+
+| How you accept it | Can a customer follow the money to you? |
+| --- | --- |
+| **Watch mode** (Bitcoin, Litecoin, Dogecoin with your wallet's key) | Yes. The money sits in your wallet, and what that wallet spends later is public. |
+| **Routed mode, no privacy routing** (Ethereum chains, Tron, Solana, routed Bitcoin-type coins) | To the gateway's hot wallet, and everything in it. Not further, until you move it. |
+| **Routed mode with privacy routing** | Harder. The trail ends in Railgun or in Monero. Amounts and timing can still give hints. |
+| **Lightning** | They see your wallet's node, not your balance. |
+
+## Watch mode
+
+Each customer gets a new address from your wallet's public key, so customers cannot see each other's payments at checkout. The coins stay at those addresses, in your wallet. When you spend them, your wallet usually combines several payments in one transaction and sends the change back to itself, and that transaction is public. A customer who follows their own payment can then see the others it was spent with, their amounts, and where the money went.
+
+So use a wallet only for 0Crypto, never your everyday wallet. See [Use a wallet only for 0Crypto](./wallet.mdx#use-a-wallet-only-for-0crypto) for why and how.
+
+## Routed mode
+
+The gateway holds the keys and moves every payment to a **hot wallet**, one per chain. The Ethereum hot wallet has the same address on all five Ethereum chains.
+
+- **Ethereum chains:** payments are swept in batches of up to 50. A customer who follows their payment sees the sweep, the other payment addresses swept with it, and the hot wallet. They cannot work out the payment addresses of other customers who were not in that sweep: each address comes from your seed phrase. Addresses made by versions of 0Crypto before November 2026 follow a public formula and can be worked out from one another.
+- **Tron and Solana:** each payment address is swept on its own to the chain's hot wallet. The hot wallet shows what it received and from where.
+- **Bitcoin, Litecoin, Dogecoin in routed mode:** a routing transaction can spend up to 100 payments at once, which links them together.
+- **Gas:** you fund the hot wallets with fuel (ETH, TRX, SOL). Wherever that fuel comes from is visible too, so send it from a wallet or exchange account that does not lead back to you.
+
+Without privacy routing, the money stays in the hot wallet until you withdraw it, and your withdrawal shows where it went.
+
+## With privacy routing
+
+[Privacy routing](./advanced/privacy-routing.mdx) moves what the hot wallets hold on to addresses only you know: Railgun for Ethereum chains, Monero (through Trocador) for the rest. It waits a random time and splits the balance into one to three amounts. A customer can follow the money into Railgun or into the swap, and the trail ends there. Two things can still give hints:
+
+- **Amounts and times.** A batch that holds only one payment shows that amount. A Railgun deposit's amount and time are public, so a withdrawal of the same amount soon after can be matched with it.
+- **The hot cap.** A balance over the hot cap (default $5000) is moved at once, without the random wait.
+
+## Lightning
+
+The payment does not appear on the Bitcoin blockchain, and a customer cannot see your balance or other payments. Every invoice does name the node that receives it, and often its channel partners. See [What an invoice shows](./advanced/lightning.mdx#what-an-invoice-shows).
+
+## Refunds
+
+A refund is a payment from you to the customer, so it shows them where it came from: the hot wallet in routed mode, or your own wallet in watch mode (refund those from your wallet).
+
+## What customers never see
+
+- The checkout page loads nothing from other sites, so no third party learns who is paying you from the page itself.
+- Webhooks and the admin stay between you and your server.
+
+Block explorers and the RPC services your gateway asks for balances do learn which addresses you watch. Customers cannot see that.
+
+For who can move your money and what to back up, see [Security and backups](./security.mdx).

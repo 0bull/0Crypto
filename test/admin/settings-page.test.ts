@@ -7,7 +7,8 @@ import { insertInvoice, insertPayment } from "../../src/db/repo";
 import type { Env } from "../../src/env";
 import { clearSettingsCache, effectiveEnv } from "../../src/settings";
 import { signedIn, type AdminTestSession } from "../admin-session";
-import { assetField, OFFERABLE } from "../../src/admin/settings";
+import { assetField, OFFERABLE, WALLET_DOCS_URL } from "../../src/admin/settings";
+import { CLIENT_PK, nwcUri, WALLET_PK } from "../chains/lightning/fake-relay";
 import { confirmFields } from "./helpers";
 
 const e = env as unknown as Env;
@@ -152,6 +153,35 @@ describe("settings restyle", () => {
   it("shows a section per concern: shop, public URL, coins, wallets, success URL hosts", async () => {
     const html = await (await get("/admin/settings")).text();
     for (const h of ["Your shop", "Public URL", "Coins", "Wallets", "Success URL hosts"]) expect(html).toContain(`>${h}</h2>`);
+  });
+  it("the Wallets section says to use a wallet only for 0Crypto, with the docs link", async () => {
+    const html = await (await get("/admin/settings")).text();
+    expect(html).toContain("data-own-wallet");
+    expect(html).toContain("Use a wallet made only for 0Crypto");
+    expect(html).toContain(WALLET_DOCS_URL);
+  });
+  it("with Lightning on, says invoices name the node, and shows the node id once the connection check has seen it", async () => {
+    const saved = { ENABLED_ASSETS: e.ENABLED_ASSETS, NWC_URI: e.NWC_URI };
+    const key = `nwc:caps:${WALLET_PK}:${CLIENT_PK}`;
+    const node = `02${"cd".repeat(32)}`;
+    Object.assign(e, { ENABLED_ASSETS: "btc:btc,ln:btc", NWC_URI: nwcUri() });
+    clearSettingsCache();
+    try {
+      let html = await (await get("/admin/settings")).text();
+      expect(html).toContain("data-ln-node");
+      expect(html).toContain("Every Lightning invoice names the node that receives it");
+      expect(html).not.toContain(node);
+      await e.KV.put(key, JSON.stringify({ ok: true, spend: false, node }));
+      html = await (await get("/admin/settings")).text();
+      expect(html).toContain(node);
+      Object.assign(e, { ENABLED_ASSETS: "btc:btc" });
+      clearSettingsCache();
+      expect(await (await get("/admin/settings")).text()).not.toContain("data-ln-node");
+    } finally {
+      Object.assign(e, saved);
+      clearSettingsCache();
+      await e.KV.delete(key);
+    }
   });
 });
 

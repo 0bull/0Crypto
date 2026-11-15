@@ -2,7 +2,7 @@ import type { Address } from "viem";
 import { chainAssets } from "../../core/assets";
 import type { AssetId, AssetInfo, ChainAdapter, DepositTarget, Observation } from "../../core/types";
 import type { Env } from "../../env";
-import { evmHotAddress } from "../../signing/addresses";
+import { evmDepositSalt, evmHotAddress } from "../../signing/addresses";
 import { EVM_CHAINS, finalTarget as finalTargetOf, type EvmChain } from "./config";
 
 // viem is large: it is imported inside the methods, never at module scope, so Worker startup (and every
@@ -67,8 +67,9 @@ export function evmAdapter(env: Env, chain: EvmChain): ChainAdapter {
     chain,
 
     async deriveAddress(index: number): Promise<string> {
-      const [hot, { factoryAddress, predictDeposit }] = await Promise.all([evmHotAddress(env), import("./predict")]);
-      return predictDeposit(factoryAddress(hot), index);
+      // A secret salt (evmDepositSalt): nobody can list other payments' deposit addresses from this one.
+      const [hot, { factoryAddress, predictForwarder }] = await Promise.all([evmHotAddress(env), import("./predict")]);
+      return predictForwarder(factoryAddress(hot), evmDepositSalt(env.MASTER_SEED ?? "", index));
     },
 
     async observe(t: DepositTarget, asset: AssetInfo): Promise<Observation> {
