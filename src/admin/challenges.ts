@@ -14,7 +14,7 @@ import type { ChallengeCheck } from "./webauthn";
  *
  * The kinds anyone can start before signing in ("setup", "recover", "login") are not stored when issued: the challenge
  * is a signed token (random bytes, expiry, HMAC under SESSION_SECRET over them, the kind and the payload hash). Nothing
- * a flood of starts does can evict or refuse the owner's challenge. It is stored only when spent (signedChallengeCheck
+ * a flood of starts does can evict or refuse the owner's challenge. It is stored only when spent (tokenChallengeCheck
  * inserts it; a second use conflicts), so it still passes at most once.
  */
 
@@ -34,7 +34,7 @@ export class ChallengeLimit extends Error {
   }
 }
 
-/** The kinds anyone can start before signing in: signed, never stored at issue (newSignedChallenge). */
+/** The kinds anyone can start before signing in: signed, never stored at issue (newTokenChallenge). */
 export type PreAuthKind = "setup" | "recover" | "login";
 
 const RAND = 16;
@@ -43,7 +43,7 @@ const macOf = async (secret: string, kind: PreAuthKind, payloadHash: string, ran
   (await hmacHex(secret, `webauthn-challenge|${kind}|${payloadHash}|${bytesToHex(rand)}|${exp}`)).slice(0, MAC * 2);
 
 /** A pre-sign-in challenge: 16 random bytes, the expiry (8 bytes, ms) and a 16-byte HMAC, as unpadded base64url. */
-export async function newSignedChallenge(secret: string, kind: PreAuthKind, payloadHash: string, now: number): Promise<string> {
+export async function newTokenChallenge(secret: string, kind: PreAuthKind, payloadHash: string, now: number): Promise<string> {
   const rand = crypto.getRandomValues(new Uint8Array(RAND));
   const exp = now + CHALLENGE_TTL_MS;
   const out = new Uint8Array(RAND + 8 + MAC);
@@ -57,7 +57,7 @@ export async function newSignedChallenge(secret: string, kind: PreAuthKind, payl
  * The webauthn.ts check for a pre-sign-in ceremony: the token must carry a valid HMAC for this kind and payload and be
  * unexpired; then it is stored as spent (a second use hits the primary key and fails). Expired spent rows are dropped.
  */
-export function signedChallengeCheck(db: D1Database, secret: string, kind: PreAuthKind, payloadHash: string, now: number): ChallengeCheck {
+export function tokenChallengeCheck(db: D1Database, secret: string, kind: PreAuthKind, payloadHash: string, now: number): ChallengeCheck {
   return async (challenge: string) => {
     let raw: Uint8Array;
     try {

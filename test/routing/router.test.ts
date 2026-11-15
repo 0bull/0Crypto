@@ -104,7 +104,8 @@ beforeAll(async () => {
     id: "inv_r", created_at: T0 - 2 * HOUR, expires_at: T0 + HOUR, price_minor: 600_000n, currency: "USD", order_id: "order-42",
     metadata: { email: "customer@example.com" }, success_url: null, allowed_assets: null, status: "paid", late: false, overpaid: false, paid_minor: 600_000n,
   });
-});
+  // Importing viem cold can take over 10 s while the whole suite loads in parallel.
+}, 60_000);
 afterAll(() => {
   Object.assign(e, saved);
   network.disable();

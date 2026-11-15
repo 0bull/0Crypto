@@ -5,7 +5,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { clientIpKey } from "../core/ip";
 import { clearSettingsCache, publicOrigin } from "../settings";
 import { page } from "../web/layout";
-import { bindingHash, newSignedChallenge, signedChallengeCheck, type PreAuthKind } from "./challenges";
+import { bindingHash, newTokenChallenge, tokenChallengeCheck, type PreAuthKind } from "./challenges";
 import { AuthShell, Csrf } from "./layout";
 import { Field, Flash, Panel } from "./ui";
 import { publicRp, requestRp, type RelyingParty, type RpRefusal } from "./rp";
@@ -94,7 +94,7 @@ function parseJson(raw: string): unknown {
 }
 
 /** A pre-sign-in challenge: signed, not stored, so no flood of starts can evict or refuse it (challenges.ts). */
-const issue = (c: Ctx, kind: PreAuthKind, payloadHash: string): Promise<string> => newSignedChallenge(c.env.SESSION_SECRET, kind, payloadHash, Date.now());
+const issue = (c: Ctx, kind: PreAuthKind, payloadHash: string): Promise<string> => newTokenChallenge(c.env.SESSION_SECRET, kind, payloadHash, Date.now());
 
 const claimed = async (db: D1Database): Promise<boolean> => (await db.prepare("SELECT 1 AS x FROM passkeys LIMIT 1").first()) !== null;
 
@@ -434,7 +434,7 @@ export function registerAuth(app: Hono<AdminEnv>): void {
     }
     const reg = await verifyRegistration({
       response: parseJson(formStr(form, "credential")),
-      check: signedChallengeCheck(c.env.DB, c.env.SESSION_SECRET, "setup", await bindingHash(binderOf(c), code.hash), now),
+      check: tokenChallengeCheck(c.env.DB, c.env.SESSION_SECRET, "setup", await bindingHash(binderOf(c), code.hash), now),
       origin: rp.origin,
       rpId: rp.rpId,
     });
@@ -477,7 +477,7 @@ export function registerAuth(app: Hono<AdminEnv>): void {
     const now = Date.now();
     const out = await verifyAuthentication({
       response,
-      check: signedChallengeCheck(c.env.DB, c.env.SESSION_SECRET, "login", await bindingHash(binderOf(c)), now),
+      check: tokenChallengeCheck(c.env.DB, c.env.SESSION_SECRET, "login", await bindingHash(binderOf(c)), now),
       origin: rp.origin,
       rpId: rp.rpId,
       passkey,
@@ -535,7 +535,7 @@ export function registerAuth(app: Hono<AdminEnv>): void {
     if (!code.ok) return recoverPage(c, code.status, { error: code.error });
     const reg = await verifyRegistration({
       response: parseJson(formStr(form, "credential")),
-      check: signedChallengeCheck(c.env.DB, c.env.SESSION_SECRET, "recover", await bindingHash(binderOf(c), code.hash), now),
+      check: tokenChallengeCheck(c.env.DB, c.env.SESSION_SECRET, "recover", await bindingHash(binderOf(c), code.hash), now),
       origin: rp.origin,
       rpId: rp.rpId,
     });
