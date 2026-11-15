@@ -11,7 +11,7 @@ import { Field, Flash, Panel } from "./ui";
 import { publicRp, requestRp, type RelyingParty, type RpRefusal } from "./rp";
 import type { AdminEnv } from "./layout";
 import { SESSION_COOKIE, SESSION_MAX_AGE, SETUP_COOKIE, cookieAttrs, cookieName, secureCookie, sessionGen, signSession } from "./session";
-import { BAD_CODE, checkCode, ensureCode, printCode, type CodePurpose } from "./setup-codes";
+import { BAD_CODE, BAD_RECOVERY, checkCode, ensureCode, newRecoveryValue, printCode, USED_FOREVER, type CodePurpose } from "./setup-codes";
 import { authenticationOptions, credentialIdOf, registrationOptions, verifyAuthentication, verifyRegistration, type StoredPasskey } from "./webauthn";
 
 /*
@@ -29,11 +29,12 @@ import { authenticationOptions, credentialIdOf, registrationOptions, verifyAuthe
  * Sign-in (/admin/login): a discoverable-credential WebAuthn get on PUBLIC_URL's rpId and origin, nothing else. On any
  * other origin the page names the right one and offers recovery, and never starts a ceremony that is bound to fail.
  *
- * Recovery (/admin/recover): the claim flow with purpose "recover" (log codes only: checkCode never accepts
- * ADMIN_SETUP_CODE for it). It adds a passkey on the request's origin, spends every live recovery code, moves PUBLIC_URL
- * there when the owner ticked the move box, and in the same batch bumps session_gen and the POS version (every admin
- * session and every POS session ends) and records an admin.recovered alert. While a Wrangler var pins PUBLIC_URL,
- * recovery runs on that origin only. Anyone can ask for a recovery code, but only the log reader sees it.
+ * Recovery (/admin/recover): the claim flow with purpose "recover". Nothing is printed: the owner proves control of the
+ * Worker by setting the ADMIN_RECOVERY_CODE secret (only someone allowed to change the Worker can) and typing the same
+ * value (checkCode never accepts ADMIN_SETUP_CODE or a logged code for it). It adds a passkey on the request's origin,
+ * stores the value as used (each value works once), moves PUBLIC_URL there when the owner ticked the move box, and in the
+ * same batch bumps session_gen and the POS version (every admin session and every POS session ends) and records an
+ * admin.recovered alert. While a Wrangler var pins PUBLIC_URL, recovery runs on that origin only.
  *
  * Challenges are single use, issued per ceremony kind and bound to the browser (the session cookie, or before sign-in
  * the random 0c_setup cookie) and, for claim and recovery, to the code's hash. The options endpoints are rate limited
@@ -51,7 +52,7 @@ const REG_FAILED = "The passkey could not be created or the request expired. Try
 const ALREADY_LISTED = "That passkey is already registered. Sign in with it instead.";
 const TOO_FAST = "Too many passkey requests from this address. Wait a minute and try again.";
 const BUSY = "Too many pending passkey requests. Try again in a few minutes.";
-const RECOVERED = "A new passkey was added with a recovery code from the Worker logs. Every device was signed out.";
+const RECOVERED = "A new passkey was added with the ADMIN_RECOVERY_CODE secret. Every device was signed out. Delete that secret now.";
 /** An attestation or assertion is a few kilobytes at most; anything far larger is not parsed. */
 const MAX_CEREMONY_JSON = 64 * 1024;
 
@@ -121,14 +122,15 @@ function transportsOf(raw: string | null): string[] | undefined {
 
 const Problem = (props: { text?: string }) => (props.text ? <Flash kind="error">{props.text}</Flash> : null);
 
-/** Where the code is, verbatim from the spec. */
+/** Where the setup code is. */
 function WhereIsTheCode(props: { line: string }) {
   return (
     <section class="well find-code" aria-labelledby="find-code-h">
       <h2 id="find-code-h">Where to find the code</h2>
       <ol class="small">
         <li>
-          Open the Cloudflare dashboard → Workers &amp; Pages → 0crypto → Logs, or run <code class="mono">npx wrangler tail</code>.
+          Open the Cloudflare dashboard → Workers &amp; Pages → your Worker (0crypto unless you renamed it) → Observability, or run{" "}
+          <code class="mono">npx wrangler tail</code>.
         </li>
         <li>
           Look for the line that starts with <span class="mono">{props.line}</span>.
@@ -145,7 +147,7 @@ function CodeForm(props: { purpose: CodePurpose; csrf: string; error?: string; c
     <form method="post" action={base} class="form" data-passkey-register={`${base}/options`}>
       <Csrf token={props.csrf} />
       <Problem text={props.error} />
-      <Field label={props.purpose === "setup" ? "Setup code (6 words)" : "Recovery code (6 words)"} name="code">
+      <Field label={props.purpose === "setup" ? "Setup code (6 words)" : "Recovery code (the ADMIN_RECOVERY_CODE value)"} name="code">
         <textarea class="input mono" name="code" rows={2} autocomplete="off" autocapitalize="none" spellcheck={false} required></textarea>
       </Field>
       {props.children}
@@ -161,9 +163,9 @@ function CodeForm(props: { purpose: CodePurpose; csrf: string; error?: string; c
   );
 }
 
-function PrintForm(props: { purpose: CodePurpose; csrf: string; notice?: string }) {
+function PrintForm(props: { csrf: string; notice?: string }) {
   return (
-    <form method="post" action={props.purpose === "setup" ? "/admin/setup/code" : "/admin/recover/code"} class="form">
+    <form method="post" action="/admin/setup/code" class="form">
       <Csrf token={props.csrf} />
       {props.notice ? <Flash kind="ok">{props.notice}</Flash> : null}
       <button type="submit" class="btn2">
@@ -186,7 +188,7 @@ function SetupPage(props: { csrf: string; error?: string; notice?: string; refus
           </p>
           <WhereIsTheCode line="0crypto setup code:" />
           <CodeForm purpose="setup" csrf={props.csrf} error={props.error} />
-          <PrintForm purpose="setup" csrf={props.csrf} notice={props.notice} />
+          <PrintForm csrf={props.csrf} notice={props.notice} />
         </>
       )}
     </AuthShell>
@@ -208,19 +210,38 @@ function ClaimedPage() {
 
 type RecoverView = { csrf: string; error?: string; notice?: string; moveTo: string | null; refusal?: string };
 
+/** How to prove you own the Worker: set a secret only an editor can set, then type it. */
+function SetRecoverySecret(props: { suggestion: string }) {
+  return (
+    <section class="well find-code" aria-labelledby="find-code-h">
+      <h2 id="find-code-h">Prove you own this gateway</h2>
+      <ol class="small">
+        <li>
+          Copy this recovery code: <code class="mono">{props.suggestion}</code> (or use your own, at least 32 characters).
+        </li>
+        <li>
+          In the Cloudflare dashboard open Workers &amp; Pages → your Worker (0crypto unless you renamed it) → Settings → Variables and Secrets. Add a{" "}
+          <b>Secret</b> named <span class="mono">ADMIN_RECOVERY_CODE</span> with the code as its value, and deploy. Or run{" "}
+          <code class="mono">npx wrangler secret put ADMIN_RECOVERY_CODE</code>.
+        </li>
+        <li>Paste the same code below and create a passkey. Each code works once; delete the secret afterwards.</li>
+      </ol>
+    </section>
+  );
+}
+
 function RecoverPage(props: RecoverView) {
   return (
     <AuthShell title="Recover access">
       <h1 class="auth-title">Lost your passkey or moved?</h1>
       <p class="muted small">
-        A recovery code from the Worker logs adds a new passkey for this address. Every device is signed out; your other passkeys stay listed, and you can
-        remove them afterwards.
+        Adds a new passkey for this address. Every device is signed out; your other passkeys stay listed, and you can remove them afterwards.
       </p>
       {props.refusal ? (
         <Problem text={props.refusal} />
       ) : (
         <>
-          <WhereIsTheCode line="0crypto recovery code:" />
+          <SetRecoverySecret suggestion={newRecoveryValue()} />
           <CodeForm purpose="recover" csrf={props.csrf} error={props.error}>
             {props.moveTo !== null ? (
               <Panel tone="warn" label="Moving your gateway">
@@ -230,7 +251,6 @@ function RecoverPage(props: RecoverView) {
               </Panel>
             ) : null}
           </CodeForm>
-          <PrintForm purpose="recover" csrf={props.csrf} notice={props.notice} />
         </>
       )}
       <p class="auth-links small">
@@ -330,8 +350,8 @@ async function claimBatch(db: D1Database, reg: NewPasskey, codeHash: string, rp:
 }
 
 /**
- * The recovery, as one batch: the passkey is stored only while the recovery code is live; then (guarded on that row)
- * every recovery code is spent, PUBLIC_URL moves when asked, session_gen and the POS version are bumped (as sign out
+ * The recovery, as one batch: the passkey is stored only while the recovery value is unused; then (guarded on that row)
+ * the value is stored as used, PUBLIC_URL moves when asked, session_gen and the POS version are bumped (as sign out
  * everywhere does) and the admin.recovered alert is recorded. A credential id that is already listed fails the insert
  * and the whole batch. True iff this request recovered.
  */
@@ -342,10 +362,13 @@ async function recoverBatch(db: D1Database, reg: NewPasskey, codeHash: string, r
       .prepare(
         `INSERT INTO passkeys(id,public_key,counter,transports,name,created_at,rp_id)
          SELECT ?1,?2,?3,?4,?5,?6,?8
-         WHERE EXISTS (SELECT 1 FROM setup_codes WHERE hash=?7 AND purpose='recover' AND expires_at>?6)`,
+         WHERE NOT EXISTS (SELECT 1 FROM setup_codes WHERE hash=?7 AND purpose='recover')`,
       )
       .bind(reg.id, reg.publicKey, reg.counter, JSON.stringify(reg.transports), name, now, codeHash, rpId),
-    db.prepare(`DELETE FROM setup_codes WHERE purpose='recover' AND ${INSERTED}`).bind(reg.id, reg.publicKey, now),
+    // Each value works once.
+    db
+      .prepare(`INSERT INTO setup_codes(hash,purpose,created_at,expires_at) SELECT ?4,'recover',?3,?5 WHERE ${INSERTED}`)
+      .bind(reg.id, reg.publicKey, now, codeHash, USED_FOREVER),
   ];
   if (moveTo !== null)
     stmts.push(
@@ -486,15 +509,7 @@ export function registerAuth(app: Hono<AdminEnv>): void {
   const moveRefusal = (c: Ctx, origin: string, form: Record<string, unknown>): string | null =>
     moving(c, origin) && formStr(form, "move") !== "1" ? `Tick “This will move your gateway to ${origin}” to continue.` : null;
 
-  app.get("/recover", async (c) => {
-    if (recoverRp(c).ok) await ensureCode(c.env.DB, "recover", Date.now());
-    return recoverPage(c);
-  });
-
-  app.post("/recover/code", async (c) => {
-    if ((await printCode(c.env.DB, "recover", Date.now())) === "too_soon") return recoverPage(c, 429, { error: TOO_SOON });
-    return recoverPage(c, 200, { notice: PRINTED });
-  });
+  app.get("/recover", (c) => recoverPage(c));
 
   app.post("/recover/options", async (c) => {
     if (await optionsLimited(c)) return c.json({ error: TOO_FAST }, 429);
@@ -544,7 +559,7 @@ export function registerAuth(app: Hono<AdminEnv>): void {
       if (e instanceof Error && /UNIQUE|PRIMARY KEY|constraint/i.test(e.message)) return recoverPage(c, 400, { error: ALREADY_LISTED });
       throw e;
     }
-    if (!ok) return recoverPage(c, 400, { error: BAD_CODE });
+    if (!ok) return recoverPage(c, 400, { error: BAD_RECOVERY });
     clearSettingsCache();
     await startSession(c);
     return c.redirect("/admin/passkeys", 303);

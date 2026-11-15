@@ -6,11 +6,17 @@ import type { Env } from "../env";
 import { hmacHex, safeEqual } from "./session";
 
 /*
- * One-time setup and recovery codes. The gateway prints a 6-word code (BIP39 English words, 66 bits) to the Worker logs;
- * the owner types it to claim the admin (purpose "setup") or to recover it (purpose "recover"). Only sha256Hex of the
- * normalised phrase is stored. A code lives 60 minutes; at most 3 live codes per purpose (printing a 4th deletes the
- * oldest); a new code can be printed at most once per 120 s per purpose. The phrase appears in exactly one place: the
- * log line printed by printCode.
+ * One-time setup codes and recovery secrets.
+ *
+ * Setup (purpose "setup", only while no passkey exists): the gateway prints a 6-word code (BIP39 English words, 66 bits)
+ * to the Worker logs and the owner types it to claim the admin. Only sha256Hex of the normalised phrase is stored. A code
+ * lives 60 minutes; at most 3 live codes (printing a 4th deletes the oldest); a new one can be printed at most once per
+ * 120 s. The phrase appears in exactly one place: the log line printed by printCode.
+ *
+ * Recovery (purpose "recover") never prints anything: reading logs is not proof of owning the account (read-only
+ * members and log destinations can read them). The owner sets a Worker secret, ADMIN_RECOVERY_CODE (32+ characters),
+ * which only someone allowed to change the Worker can do, and types the same value. Each value works once: the recovery
+ * batch stores recoveryHash(value) as a used row (purpose "recover") and refuses a value already stored.
  *
  * Every check first reserves an attempt slot for the client (setup_attempts, the same atomic upsert as POS PINs), BEFORE
  * the code is looked at: 5 per 10 minutes per client (an IPv6 /64 is one client; the key is an HMAC, never the IP).
@@ -35,6 +41,10 @@ const MAX_INPUT = 1024;
 const MIN_ENV_CODE = 32;
 
 export const BAD_CODE = "That code is not valid or has expired. Check the latest code in your Worker logs.";
+export const BAD_RECOVERY = "That is not the value of the ADMIN_RECOVERY_CODE secret, or it was already used. Set a new value and try again.";
+export const NO_RECOVERY_SECRET = "The ADMIN_RECOVERY_CODE secret is not set, or is shorter than 32 characters. Add it first (step 2), then try again.";
+/** How long a used recovery value stays refused: for good. */
+export const USED_FOREVER = 8_640_000_000_000_000;
 export const TOO_MANY = "Too many wrong codes. Wait 10 minutes and try again.";
 const ABUSE_LINE = "0crypto: setup.abuse more than 100 wrong setup or recovery codes within an hour";
 
@@ -45,6 +55,17 @@ export function newSetupCode(): string {
   return Array.from(crypto.getRandomValues(new Uint16Array(6)), (r) => wordlist[r & 2047]!).join(" ");
 }
 
+/** A suggested recovery value: 8 words joined by hyphens (88 bits, over 32 characters). Shown on the page, never stored. */
+export function newRecoveryValue(): string {
+  for (;;) {
+    const v = Array.from(crypto.getRandomValues(new Uint16Array(8)), (r) => wordlist[r & 2047]!).join("-");
+    if (v.length >= MIN_ENV_CODE) return v;
+  }
+}
+
+/** What a used recovery value is stored as (its own namespace, so it can never match a setup code's hash). */
+export const recoveryHash = async (value: string): Promise<string> => `recover:${await sha256Hex(value)}`;
+
 /** The canonical phrase (NFKD, lowercase, single spaces), or null unless it is exactly 6 words all on the list. */
 export function normalizeCode(input: string): string | null {
   if (input.length > MAX_INPUT) return null;
@@ -54,11 +75,11 @@ export function normalizeCode(input: string): string | null {
 }
 
 /**
- * Prints a new code of this purpose to the logs unless one was printed in the last 120 s. The insert is conditional on
+ * Prints a new setup code to the logs unless one was printed in the last 120 s. The insert is conditional on
  * that in the same statement, so concurrent callers print at most one. The same batch deletes this purpose's codes
  * beyond the newest 3 live ones (and its expired ones).
  */
-export async function printCode(db: D1Database, purpose: CodePurpose, now: number): Promise<"printed" | "too_soon"> {
+export async function printCode(db: D1Database, purpose: "setup", now: number): Promise<"printed" | "too_soon"> {
   const code = newSetupCode();
   const [ins] = await db.batch([
     db
@@ -76,12 +97,12 @@ export async function printCode(db: D1Database, purpose: CodePurpose, now: numbe
   ]);
   if ((ins!.meta.changes ?? 0) !== 1) return "too_soon";
   // The only place a code is ever written out.
-  console.log(`0crypto ${purpose === "setup" ? "setup" : "recovery"} code: ${code} (valid 60 min)`);
+  console.log(`0crypto setup code: ${code} (valid 60 min)`);
   return "printed";
 }
 
-/** Prints a code of this purpose only when none is live. */
-export async function ensureCode(db: D1Database, purpose: CodePurpose, now: number): Promise<void> {
+/** Prints a setup code only when none is live. */
+export async function ensureCode(db: D1Database, purpose: "setup", now: number): Promise<void> {
   const live = await db.prepare("SELECT 1 AS x FROM setup_codes WHERE purpose=? AND expires_at>? LIMIT 1").bind(purpose, now).first();
   if (!live) await printCode(db, purpose, now);
 }
@@ -124,24 +145,39 @@ export type CodeCheck = { ok: true; hash: string } | { ok: false; status: 400 | 
 
 /**
  * Checks a typed code. `ip` is the client address or its clientIpKey (rateKeyIp is idempotent). The attempt slot is
- * reserved first; over the limit the code is not looked at. Does not consume the code: the caller puts
- * consumeCodeStmt(hash) in the same batch as the claim and requires it to delete one row. For "setup" only, a deploy-time
- * ADMIN_SETUP_CODE of at least 32 chars is also accepted (hash "env"). A D1 error on the client slot throws (the caller
- * answers an error; nothing is checked).
+ * reserved first; over the limit the code is not looked at. Does not consume the code: the claim batch spends it (and
+ * the recovery batch stores it as used). "setup": a live logged code, or a deploy-time ADMIN_SETUP_CODE of at least 32
+ * chars (hash "env"). "recover": only the ADMIN_RECOVERY_CODE secret (32+ chars) not used before (hash recoveryHash).
+ * A D1 error on the client slot throws (the caller answers an error; nothing is checked).
  */
 export async function checkCode(env: Env, ip: string, purpose: CodePurpose, input: string, now: number): Promise<CodeCheck> {
   const key = `ip:${await hmacHex(env.SESSION_SECRET, rateKeyIp(ip))}`;
   if ((await reserve(env.DB, key, CLIENT_WINDOW_MS, now)) > CLIENT_MAX_WRONG) return { ok: false, status: 429, error: TOO_MANY };
 
   let hash: string | null = null;
+  if (purpose === "recover") {
+    const secret = (env.ADMIN_RECOVERY_CODE ?? "").trim();
+    if (secret.length < MIN_ENV_CODE) return { ok: false, status: 400, error: NO_RECOVERY_SECRET };
+    if (input.length <= MAX_INPUT && safeEqual(input.trim(), secret)) {
+      const h = await recoveryHash(secret);
+      const used = await env.DB.prepare("SELECT 1 AS x FROM setup_codes WHERE hash=? AND purpose='recover'").bind(h).first();
+      if (!used) hash = h;
+    }
+    if (hash === null) {
+      await countWrong(env.DB, now);
+      return { ok: false, status: 400, error: BAD_RECOVERY };
+    }
+    await env.DB.prepare("DELETE FROM setup_attempts WHERE key=?").bind(key).run();
+    return { ok: true, hash };
+  }
   const envCode = (env.ADMIN_SETUP_CODE ?? "").trim();
-  if (purpose === "setup" && envCode.length >= MIN_ENV_CODE && input.length <= MAX_INPUT && safeEqual(input.trim(), envCode)) {
+  if (envCode.length >= MIN_ENV_CODE && input.length <= MAX_INPUT && safeEqual(input.trim(), envCode)) {
     hash = "env";
   } else {
     const phrase = normalizeCode(input);
     if (phrase !== null) {
       const h = await sha256Hex(phrase);
-      const row = await env.DB.prepare("SELECT 1 AS x FROM setup_codes WHERE hash=? AND purpose=? AND expires_at>?").bind(h, purpose, now).first();
+      const row = await env.DB.prepare("SELECT 1 AS x FROM setup_codes WHERE hash=? AND purpose='setup' AND expires_at>?").bind(h, now).first();
       if (row) hash = h;
     }
   }

@@ -106,13 +106,13 @@ describe("claimed gateway", () => {
     const { r, html } = await preAuthPage(`${BASE}/admin/recover`);
     expect(r.status).toBe(200);
     expectAuthChrome(html);
-    expect(html).toContain("Where to find the code");
+    expect(html).toContain("Prove you own this gateway");
     expect(html).toContain("Workers &amp; Pages");
     expect(html).toContain('href="/admin/login"');
     const f = form(html, "/admin/recover");
     expect(f.names).toEqual(["code", "credential", "csrf"]);
     expect(f.open).toContain('data-passkey-register="/admin/recover/options"');
-    expect(form(html, "/admin/recover/code").names).toEqual(["csrf"]);
+    expect(html).not.toContain("/admin/recover/code");
   });
 
   it("recovery on another origin than PUBLIC_URL asks for the move in a warning panel, with the move checkbox", async () => {

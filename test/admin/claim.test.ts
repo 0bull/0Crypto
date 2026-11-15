@@ -70,7 +70,7 @@ describe("claim", () => {
     expect(html).toContain('name="credential"');
     expect(html).toContain("data-passkey-error");
     expect(html).toContain('action="/admin/setup/code"');
-    expect(html).toContain("Cloudflare dashboard → Workers &amp; Pages → 0crypto → Logs");
+    expect(html).toContain("Cloudflare dashboard → Workers &amp; Pages → your Worker (0crypto unless you renamed it) → Observability");
     expect(html).toContain("npx wrangler tail");
     expect(html).toMatch(/<noscript>[^]*JavaScript[^]*<\/noscript>/);
     expect(html).not.toContain(log.codes("setup")[0]!);

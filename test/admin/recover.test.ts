@@ -1,10 +1,10 @@
-// "Lost your passkey or moved to a new domain?": a recovery code from the Worker logs registers a new passkey on the
-// host the request came in on and signs every device out (Plan 7 Task 7).
+// "Lost your passkey or moved to a new domain?": the ADMIN_RECOVERY_CODE secret (set by whoever can change the Worker)
+// registers a new passkey on the host the request came in on and signs every device out. Nothing is printed to the logs.
 import { applyD1Migrations, type D1Migration } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/server";
-import { sha256Hex } from "../../src/api/auth";
+import { newRecoveryValue, recoveryHash } from "../../src/admin/setup-codes";
 import { sessionGen } from "../../src/admin/session";
 import type { Env } from "../../src/env";
 import { clearSettingsCache } from "../../src/settings";
@@ -13,7 +13,9 @@ import { call, cookiePair, e, liveCode, logSpy, options, preAuthPage, setCookieO
 import { SoftAuthenticator } from "../passkey";
 
 const BASE = "https://pay.test";
-const ALERT = "A new passkey was added with a recovery code from the Worker logs. Every device was signed out.";
+const ALERT = "A new passkey was added with the ADMIN_RECOVERY_CODE secret. Every device was signed out. Delete that secret now.";
+/** A fresh recovery value and the env that sets it as the Worker secret. */
+const secret = () => { const v = newRecoveryValue(); return { v, env: { ADMIN_RECOVERY_CODE: v } as Partial<Env> }; };
 let owner: AdminTestSession;
 
 beforeAll(async () => {
@@ -45,15 +47,17 @@ async function prepareRecovery(base: string, code: string, o: { env?: Partial<En
 }
 
 describe("recovery page", () => {
-  it("is public once a passkey exists, prints a recovery code and has the register form", async () => {
+  it("is public once a passkey exists, prints nothing, explains the secret and has the register form", async () => {
     const { r, html } = await preAuthPage(`${BASE}/admin/recover`);
     expect(r.status).toBe(200);
-    expect(log.codes("recover")).toHaveLength(1);
-    expect(log.codes("setup")).toHaveLength(0);
+    expect(log.lines()).toHaveLength(0);
     expect(html).toContain('data-passkey-register="/admin/recover/options"');
     expect(html).toContain('name="code"');
-    expect(html).toContain("Cloudflare dashboard → Workers &amp; Pages → 0crypto → Logs");
-    expect(html).toContain('action="/admin/recover/code"');
+    expect(html).toContain("Settings → Variables and Secrets");
+    expect(html).toContain("ADMIN_RECOVERY_CODE");
+    expect(html).toMatch(/Copy this recovery code: <code class="mono">([a-z]+-){7}[a-z]+<\/code>/);
+    expect(html).not.toContain("/admin/recover/code");
+    expect((await call(`${BASE}/admin/recover/code`, { method: "POST" } as CallOpts)).status).not.toBe(200);
     expect(html).not.toContain('name="move"'); // same host as PUBLIC_URL: nothing moves
     expect(html).toMatch(/<noscript>[^]*JavaScript[^]*<\/noscript>/);
   });
@@ -66,7 +70,6 @@ describe("recovery page", () => {
 
   it("on another host with a PUBLIC_URL var, refuses: open the var's address or change the var", async () => {
     const html = await (await call("https://new.test/admin/recover")).text();
-    expect(log.codes("recover")).toHaveLength(0);
     expect(html).toContain("PUBLIC_URL is set by a Wrangler var to https://pay.test: open https://pay.test/admin/recover, or change the var.");
     expect(html).not.toContain('name="move"');
     expect(html).not.toContain("data-passkey-register");
@@ -78,7 +81,7 @@ describe("recovery page", () => {
     expect(html).toContain("Open http://localhost:8787/admin/recover instead.");
     expect(html).not.toContain("data-passkey-register");
     const page = await preAuth(e, "http://127.0.0.1:8787");
-    const o = await options("http://127.0.0.1:8787/admin/recover/options", { env, cookie: page.cookie, form: { csrf: page.csrf, code: await liveCode("recover"), move: "1" } });
+    const o = await options("http://127.0.0.1:8787/admin/recover/options", { env, cookie: page.cookie, form: { csrf: page.csrf, code: newRecoveryValue(), move: "1" } });
     expect(o.status).toBe(400);
     expect(o.body.error).toContain("Open http://localhost:8787/admin/recover");
   });
@@ -86,14 +89,12 @@ describe("recovery page", () => {
 
 describe("recovery", () => {
   it("adds a second passkey, signs every device out, raises admin.recovered and keeps the first passkey", async () => {
-    await call(`${BASE}/admin/recover`);
-    const code = log.codes("recover")[0]!;
-    const other = await liveCode("recover");
+    const { v: code, env: rec } = secret();
     const before = await passkeyIds();
     const gen = await sessionGen(e.DB);
     expect((await call(`${BASE}/admin`, { cookie: owner.cookie })).status).toBe(200);
 
-    const r0 = await prepareRecovery(BASE, code);
+    const r0 = await prepareRecovery(BASE, code, { env: rec });
     expect(r0.options.rp.id).toBe("pay.test");
     expect((r0.options.excludeCredentials ?? []).map((c) => c.id)).toEqual(expect.arrayContaining(before));
     const r = await call(`${BASE}/admin/recover`, r0.post);
@@ -114,14 +115,13 @@ describe("recovery", () => {
     expect((await call(`${BASE}/admin`, { cookie: cookiePair(setCookieOf(r, "__Host-0c_session")) })).status).toBe(200);
     const alert = await e.DB.prepare("SELECT detail FROM alerts WHERE kind='admin.recovered' AND resolved_at IS NULL").first<{ detail: string }>();
     expect(alert?.detail).toBe(ALERT);
-    // The code and every other live recovery code are spent.
-    expect((await e.DB.prepare("SELECT count(*) AS n FROM setup_codes WHERE purpose='recover'").first<{ n: number }>())!.n).toBe(0);
-    void other;
+    // The value is stored as used (only its hash).
+    expect((await e.DB.prepare("SELECT hash FROM setup_codes WHERE purpose='recover'").all<{ hash: string }>()).results).toEqual([{ hash: await recoveryHash(code) }]);
     // Not moving: PUBLIC_URL is untouched.
     expect(await storedPublicUrl()).toBeUndefined();
     // The same code again is refused.
-    const again = await preAuthPage(`${BASE}/admin/recover`);
-    expect((await options(`${BASE}/admin/recover/options`, { cookie: again.cookie, form: { csrf: again.csrf, code } })).status).toBe(400);
+    const again = await preAuthPage(`${BASE}/admin/recover`, { env: rec });
+    expect((await options(`${BASE}/admin/recover/options`, { env: rec, cookie: again.cookie, form: { csrf: again.csrf, code } })).status).toBe(400);
   });
 
   it("also ends every POS session (the POS version is bumped in the recovery batch) and records the alert there", async () => {
@@ -131,7 +131,8 @@ describe("recovery", () => {
     expect((await call(`${BASE}/pos/recent`, { cookie: pos })).status).toBe(200);
     const version = async () => (await e.DB.prepare("SELECT version FROM pos_config WHERE id=1").first<{ version: number }>())!.version;
     const v = await version();
-    const r0 = await prepareRecovery(BASE, await liveCode("recover"));
+    const { v: value, env: rec } = secret();
+    const r0 = await prepareRecovery(BASE, value, { env: rec });
     // The batch writes the alert itself: recordAlert (a separate write after it) is no longer called.
     const alerts = await import("../../src/db/alerts");
     const spy = vi.spyOn(alerts, "recordAlert");
@@ -143,9 +144,9 @@ describe("recovery", () => {
   });
 
   it("two recoveries with one code at once: exactly one wins", async () => {
-    const code = await liveCode("recover");
-    const a = await prepareRecovery(BASE, code);
-    const b = await prepareRecovery(BASE, code);
+    const { v: code, env: rec } = secret();
+    const a = await prepareRecovery(BASE, code, { env: rec });
+    const b = await prepareRecovery(BASE, code, { env: rec });
     const before = (await passkeyIds()).length;
     const [ra, rb] = await Promise.all([call(`${BASE}/admin/recover`, a.post), call(`${BASE}/admin/recover`, b.post)]);
     expect([ra.status, rb.status].sort()).toEqual([303, 400]);
@@ -160,40 +161,42 @@ describe("recovery", () => {
     expect(o.body.options).toBeUndefined();
   });
 
-  it("a setup code is refused for recovery", async () => {
+  it("a logged setup code is refused for recovery, even with the secret set", async () => {
     const code = await liveCode("setup");
-    const page = await preAuthPage(`${BASE}/admin/recover`);
-    expect((await options(`${BASE}/admin/recover/options`, { cookie: page.cookie, form: { csrf: page.csrf, code } })).status).toBe(400);
+    const { env: rec } = secret();
+    const page = await preAuthPage(`${BASE}/admin/recover`, { env: rec });
+    expect((await options(`${BASE}/admin/recover/options`, { env: rec, cookie: page.cookie, form: { csrf: page.csrf, code } })).status).toBe(400);
   });
 
-  it("the final POST re-checks the code", async () => {
-    const r0 = await prepareRecovery(BASE, await liveCode("recover"));
-    await e.DB.prepare("DELETE FROM setup_codes").run();
+  it("the final POST re-checks the secret (changed meanwhile: refused)", async () => {
+    const { v, env: rec } = secret();
+    const r0 = await prepareRecovery(BASE, v, { env: rec });
+    r0.post.env = { ADMIN_RECOVERY_CODE: newRecoveryValue() };
     const before = (await passkeyIds()).length;
     expect((await call(`${BASE}/admin/recover`, r0.post)).status).toBe(400);
     expect(await passkeyIds()).toHaveLength(before);
   });
 
   it("re-registering a credential that is already listed is refused and changes nothing", async () => {
-    const page = await preAuthPage(`${BASE}/admin/recover`);
-    const code = await liveCode("recover");
-    const opts = await options<PublicKeyCredentialCreationOptionsJSON>(`${BASE}/admin/recover/options`, { cookie: page.cookie, form: { csrf: page.csrf, code } });
+    const { v: code, env: rec } = secret();
+    const page = await preAuthPage(`${BASE}/admin/recover`, { env: rec });
+    const opts = await options<PublicKeyCredentialCreationOptionsJSON>(`${BASE}/admin/recover/options`, { env: rec, cookie: page.cookie, form: { csrf: page.csrf, code } });
     const credential = JSON.stringify(await owner.authenticator.register(opts.body.options!, BASE));
     const gen = await sessionGen(e.DB);
     const before = await passkeyIds();
-    const r = await call(`${BASE}/admin/recover`, { cookie: page.cookie, form: { csrf: page.csrf, code, credential } });
+    const r = await call(`${BASE}/admin/recover`, { env: rec, cookie: page.cookie, form: { csrf: page.csrf, code, credential } });
     expect(r.status).toBe(400);
     expect(await sessionGen(e.DB)).toBe(gen);
-    expect(await e.DB.prepare("SELECT 1 AS x FROM setup_codes WHERE hash=?").bind(await sha256Hex(code)).first()).not.toBeNull(); // not spent
+    expect(await e.DB.prepare("SELECT 1 AS x FROM setup_codes WHERE hash=?").bind(await recoveryHash(code)).first()).toBeNull(); // not spent
     expect(await passkeyIds()).toEqual(before);
   });
 
   it("moves: from https://new.test with move=1 and an empty PUBLIC_URL var, PUBLIC_URL becomes https://new.test", async () => {
-    const envNoVar = { PUBLIC_URL: "" };
+    const { v: code, env: rec } = secret();
+    const envNoVar = { PUBLIC_URL: "", ...rec };
     await e.DB.prepare("INSERT INTO settings(key,value,updated_at) VALUES('PUBLIC_URL','https://pay.test',?)").bind(Date.now()).run();
     clearSettingsCache();
     // Without the move box: refused at options and at the final POST.
-    const code = await liveCode("recover");
     const page = await preAuthPage("https://new.test/admin/recover", { env: envNoVar });
     const refused = await options("https://new.test/admin/recover/options", { env: envNoVar, cookie: page.cookie, form: { csrf: page.csrf, code } });
     expect(refused.status).toBe(400);
@@ -216,16 +219,16 @@ describe("recovery", () => {
 
   it("with a PUBLIC_URL var, a recovery on another origin is refused at options and at the final POST", async () => {
     const msg = "PUBLIC_URL is set by a Wrangler var to https://pay.test: open https://pay.test/admin/recover, or change the var.";
-    const code = await liveCode("recover");
+    const { v: code, env: rec } = secret();
     const page = await preAuth(e, "https://new.test");
-    const o = await options("https://new.test/admin/recover/options", { cookie: page.cookie, form: { csrf: page.csrf, code } });
+    const o = await options("https://new.test/admin/recover/options", { env: rec, cookie: page.cookie, form: { csrf: page.csrf, code } });
     expect(o.status).toBe(400);
     expect(o.body.error).toBe(msg);
     // A registration made through an unpinned options call cannot be finished once the var pins another origin.
-    const r0 = await prepareRecovery("https://new.test", code, { env: { PUBLIC_URL: "" }, move: true });
+    const r0 = await prepareRecovery("https://new.test", code, { env: { PUBLIC_URL: "", ...rec }, move: true });
     const before = await passkeyIds();
     const gen = await sessionGen(e.DB);
-    const r = await call("https://new.test/admin/recover", { ...r0.post, env: {} });
+    const r = await call("https://new.test/admin/recover", { ...r0.post, env: rec });
     expect(r.status).toBe(400);
     expect(await r.text()).toContain(msg);
     expect(await passkeyIds()).toEqual(before);

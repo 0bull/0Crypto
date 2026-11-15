@@ -3,13 +3,13 @@ import { env } from "cloudflare:workers";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../../src/env";
-import { checkCode, consumeCodeStmt, ensureCode, newSetupCode, normalizeCode, printCode, type CodePurpose } from "../../src/admin/setup-codes";
+import { BAD_RECOVERY, checkCode, consumeCodeStmt, ensureCode, newRecoveryValue, NO_RECOVERY_SECRET, newSetupCode, normalizeCode, printCode, recoveryHash, USED_FOREVER } from "../../src/admin/setup-codes";
 
 const e = env as unknown as Env;
 const T = 1_900_000_000_000;
 const BAD = { ok: false, status: 400, error: "That code is not valid or has expired. Check the latest code in your Worker logs." };
 const LIMITED = { ok: false, status: 429, error: "Too many wrong codes. Wait 10 minutes and try again." };
-const LINE = /^0crypto (setup|recovery) code: ((?:[a-z]+ ){5}[a-z]+) \(valid 60 min\)$/;
+const LINE = /^0crypto (setup) code: ((?:[a-z]+ ){5}[a-z]+) \(valid 60 min\)$/;
 const ABUSE = "0crypto: setup.abuse more than 100 wrong setup or recovery codes within an hour";
 
 let log: ReturnType<typeof vi.spyOn>;
@@ -18,7 +18,7 @@ const lines = (): string[] => log.mock.calls.map((c: unknown[]) => c.map(String)
 const printed = (): string[] => lines().flatMap((l) => LINE.exec(l)?.[2] ?? []);
 
 /** Prints a code and returns its phrase (read back from the log line, the only place it appears). */
-async function print(purpose: CodePurpose, now: number): Promise<string> {
+async function print(purpose: "setup", now: number): Promise<string> {
   const before = printed().length;
   expect(await printCode(e.DB, purpose, now)).toBe("printed");
   const after = printed();
@@ -65,12 +65,10 @@ describe("newSetupCode / normalizeCode", () => {
 });
 
 describe("printCode / ensureCode", () => {
-  it("logs exactly the setup line, and the recovery line for recover", async () => {
+  it("logs exactly the setup line", async () => {
     await print("setup", T);
-    await print("recover", T);
-    expect(lines()).toHaveLength(2);
+    expect(lines()).toHaveLength(1);
     expect(lines()[0]).toMatch(/^0crypto setup code: ([a-z]+ ){5}[a-z]+ \(valid 60 min\)$/);
-    expect(lines()[1]).toMatch(/^0crypto recovery code: ([a-z]+ ){5}[a-z]+ \(valid 60 min\)$/);
   });
   it("stores only the hash, never the phrase", async () => {
     const code = await print("setup", T);
@@ -84,7 +82,6 @@ describe("printCode / ensureCode", () => {
     await print("setup", T);
     expect(await printCode(e.DB, "setup", T + 119_999)).toBe("too_soon");
     expect(printed()).toHaveLength(1);
-    await print("recover", T + 1); // the other purpose has its own throttle
     await print("setup", T + 120_001);
   });
   it("ensureCode prints only when no live code of that purpose exists", async () => {
@@ -92,10 +89,8 @@ describe("printCode / ensureCode", () => {
     expect(printed()).toHaveLength(1);
     await ensureCode(e.DB, "setup", T + 200_000);
     expect(printed()).toHaveLength(1);
-    await ensureCode(e.DB, "recover", T + 200_000);
-    expect(printed()).toHaveLength(2);
     await ensureCode(e.DB, "setup", T + 3_600_001); // the first one expired
-    expect(printed()).toHaveLength(3);
+    expect(printed()).toHaveLength(2);
   });
 });
 
@@ -113,10 +108,11 @@ describe("checkCode", () => {
     const [again] = await e.DB.batch([consumeCodeStmt(e.DB, r.hash, T + 5)]);
     expect(again!.meta.changes).toBe(0);
   });
-  it("a code is only valid for its own purpose", async () => {
-    const code = await print("recover", T);
-    expect(await checkCode(e, "198.51.100.1", "setup", code, T + 1)).toEqual(BAD);
-    expect((await checkCode(e, "198.51.100.1", "recover", code, T + 1)).ok).toBe(true);
+  it("a printed setup code never recovers", async () => {
+    const code = await print("setup", T);
+    expect(await checkCode(e, "198.51.100.1", "recover", code, T + 1)).toEqual({ ok: false, status: 400, error: NO_RECOVERY_SECRET });
+    const withSecret = { ...e, ADMIN_RECOVERY_CODE: newRecoveryValue() } as Env;
+    expect(await checkCode(withSecret, "198.51.100.1", "recover", code, T + 2)).toEqual({ ok: false, status: 400, error: BAD_RECOVERY });
   });
   it("an expired code is wrong at now + 3600001", async () => {
     const code = await print("setup", T);
@@ -171,8 +167,12 @@ describe("checkCode", () => {
   });
   it("101 wrong codes across 101 IPs: never 429, a fresh IP still claims, one abuse line and one setup.abuse alert", async () => {
     const code = await print("setup", T);
+    const withSecret = { ...e, ADMIN_RECOVERY_CODE: newRecoveryValue() } as Env;
     for (let i = 0; i < 101; i++) {
-      expect(await checkCode(e, `10.0.${i >> 8}.${i & 255}`, i % 2 ? "setup" : "recover", WRONG, T + i)).toEqual(BAD);
+      const purpose = i % 2 ? "setup" : "recover";
+      expect(await checkCode(withSecret, `10.0.${i >> 8}.${i & 255}`, purpose, WRONG, T + i)).toEqual(
+        purpose === "setup" ? BAD : { ok: false, status: 400, error: BAD_RECOVERY },
+      );
     }
     for (let i = 101; i < 130; i++) expect(await checkCode(e, `10.0.${i >> 8}.${i & 255}`, "setup", WRONG, T + i)).toEqual(BAD);
     expect((await checkCode(e, "192.0.2.200", "setup", code, T + 200)).ok).toBe(true);
@@ -187,7 +187,7 @@ describe("checkCode", () => {
     expect(secret).toHaveLength(32);
     const withEnv = { ...e, ADMIN_SETUP_CODE: secret } as Env;
     expect(await checkCode(withEnv, "198.51.100.5", "setup", `  ${secret}\n`, T)).toEqual({ ok: true, hash: "env" });
-    expect(await checkCode(withEnv, "198.51.100.5", "recover", secret, T + 1)).toEqual(BAD);
+    expect(await checkCode(withEnv, "198.51.100.5", "recover", secret, T + 1)).toEqual({ ok: false, status: 400, error: NO_RECOVERY_SECRET });
     expect(await checkCode(withEnv, "198.51.100.5", "setup", secret.slice(0, 31), T + 2)).toEqual(BAD);
     const short = { ...e, ADMIN_SETUP_CODE: secret.slice(0, 31) } as Env;
     expect(await checkCode(short, "198.51.100.5", "setup", secret.slice(0, 31), T + 3)).toEqual(BAD);
@@ -212,5 +212,30 @@ describe("checkCode", () => {
     expect(warn).not.toHaveBeenCalled();
     err.mockRestore();
     warn.mockRestore();
+  });
+});
+
+describe("checkCode for recovery: the ADMIN_RECOVERY_CODE secret, once", () => {
+  const value = "maple-orbit-zebra-absorb-kitten-velvet-ocean-lumber"; // 50 chars
+  const withSecret = { ...e, ADMIN_RECOVERY_CODE: value } as Env;
+  it("accepts the secret's value (trimmed) and refuses anything else", async () => {
+    expect(await checkCode(withSecret, "198.51.100.30", "recover", `  ${value}\n`, T)).toEqual({ ok: true, hash: await recoveryHash(value) });
+    expect(await checkCode(withSecret, "198.51.100.30", "recover", value.slice(0, -1), T + 1)).toEqual({ ok: false, status: 400, error: BAD_RECOVERY });
+  });
+  it("is refused when the secret is unset or under 32 characters, without looking at the input", async () => {
+    expect(await checkCode(e, "198.51.100.31", "recover", value, T)).toEqual({ ok: false, status: 400, error: NO_RECOVERY_SECRET });
+    const short = { ...e, ADMIN_RECOVERY_CODE: "x".repeat(31) } as Env;
+    expect(await checkCode(short, "198.51.100.31", "recover", "x".repeat(31), T + 1)).toEqual({ ok: false, status: 400, error: NO_RECOVERY_SECRET });
+  });
+  it("a value stored as used is refused", async () => {
+    await e.DB.prepare("INSERT INTO setup_codes(hash,purpose,created_at,expires_at) VALUES(?,'recover',?,?)").bind(await recoveryHash(value), T, USED_FOREVER).run();
+    expect(await checkCode(withSecret, "198.51.100.32", "recover", value, T + 1)).toEqual({ ok: false, status: 400, error: BAD_RECOVERY });
+  });
+  it("suggests 8 list words joined by hyphens, over 32 characters", () => {
+    for (let i = 0; i < 20; i++) {
+      const v = newRecoveryValue();
+      expect(v.split("-")).toHaveLength(8);
+      expect(v.length).toBeGreaterThanOrEqual(32);
+    }
   });
 });

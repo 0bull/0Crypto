@@ -39,7 +39,7 @@ export const admin = new Hono<AdminEnv>();
 /** Reachable while no passkey exists (everything else redirects here); 404 once one does. */
 const SETUP_PATHS = new Set(["/admin/setup", "/admin/setup/options", "/admin/setup/code"]);
 /** Reachable without a session once the gateway is claimed. */
-const PUBLIC_PATHS = new Set(["/admin/login", "/admin/login/options", "/admin/recover", "/admin/recover/options", "/admin/recover/code"]);
+const PUBLIC_PATHS = new Set(["/admin/login", "/admin/login/options", "/admin/recover", "/admin/recover/options"]);
 
 // Plain http only on a loopback host (local development): anywhere else the admin answers 308 to https first, so no
 // cookie, form or passkey ceremony ever happens over http on a public host.

@@ -21,6 +21,8 @@ export interface Env {
   SUCCESS_URL_HOSTS?: string;
   /** Optional secret: a setup code the owner chose at deploy time, for the first claim of /admin/setup. */
   ADMIN_SETUP_CODE?: string;
+  /** Optional secret, set by the owner to recover the admin (/admin/recover): 32+ characters, each value works once. */
+  ADMIN_RECOVERY_CODE?: string;
   COINGECKO_KEY?: string;
   /** "true" lets a UTXO chain without an xpub derive deposit addresses from MASTER_SEED (routed mode). */
   ALLOW_SEED_CUSTODY?: string;

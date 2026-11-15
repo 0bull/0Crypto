@@ -41,6 +41,7 @@
 # MERCHANT_NAME=My Shop  # shown on checkout pages
 # SUCCESS_URL_HOSTS=shop.example.com  # comma-separated hostnames an invoice success_url may point to (also editable in admin settings)
 # ADMIN_SETUP_CODE=  # optional: lets CI claim a fresh deployment; 32+ chars; never used for recovery
+# ADMIN_RECOVERY_CODE=  # set only to recover the admin (/admin/recover): 32+ chars, works once; delete it afterwards
 # --- privacy routing vars (wrangler.jsonc vars in production; see docs/deploy.md) ---
 # RAILGUN_0ZK_ADDRESS=  # your Railgun 0zk address, where EVM funds are shielded
 # RAILGUN_GOLDEN_OK=  # "1" only after the live spike in docs/railgun-spike.md
