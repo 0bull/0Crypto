@@ -2,11 +2,12 @@ import { applyD1Migrations, type D1Migration } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Env } from "../../src/env";
-import { bindingHash, ChallengeLimit, challengeCheck, MAX_LIVE_CHALLENGES, newChallenge } from "../../src/admin/challenges";
+import { bindingHash, ChallengeLimit, challengeCheck, MAX_LIVE_CHALLENGES, newChallenge, newSignedChallenge, signedChallengeCheck } from "../../src/admin/challenges";
 import { sha256Hex } from "../../src/api/auth";
 
 const e = env as unknown as Env;
 const T = 1_900_000_000_000;
+const S = "test-session-secret";
 const count = async () => (await e.DB.prepare("SELECT count(*) AS n FROM webauthn_challenges").first<{ n: number }>())!.n;
 
 beforeAll(async () => {
@@ -18,22 +19,22 @@ beforeEach(async () => {
 
 describe("webauthn challenges", () => {
   it("are 32 random bytes as canonical unpadded base64url, expiring after 300000 ms", async () => {
-    const c = await newChallenge(e.DB, "login", "", T);
+    const c = await newChallenge(e.DB, "add", "", T);
     expect(c).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(await newChallenge(e.DB, "login", "", T)).not.toBe(c);
+    expect(await newChallenge(e.DB, "add", "", T)).not.toBe(c);
     const row = await e.DB.prepare("SELECT * FROM webauthn_challenges WHERE id=?").bind(c).first<{ kind: string; payload_hash: string; expires_at: number }>();
-    expect(row).toEqual({ id: c, kind: "login", payload_hash: "", expires_at: T + 300_000 });
+    expect(row).toEqual({ id: c, kind: "add", payload_hash: "", expires_at: T + 300_000 });
   });
   it("a check passes once, then fails", async () => {
-    const c = await newChallenge(e.DB, "login", "", T);
-    const check = challengeCheck(e.DB, "login", "", T + 1);
+    const c = await newChallenge(e.DB, "add", "", T);
+    const check = challengeCheck(e.DB, "add", "", T + 1);
     expect(await check(c)).toBe(true);
     expect(await check(c)).toBe(false);
     expect(await count()).toBe(0);
   });
   it("concurrent checks of one challenge: exactly one passes", async () => {
-    const c = await newChallenge(e.DB, "login", "", T);
-    const check = challengeCheck(e.DB, "login", "", T + 1);
+    const c = await newChallenge(e.DB, "add", "", T);
+    const check = challengeCheck(e.DB, "add", "", T + 1);
     const r = await Promise.all(Array.from({ length: 8 }, () => check(c)));
     expect(r.filter(Boolean)).toHaveLength(1);
   });
@@ -64,41 +65,67 @@ describe("webauthn challenges", () => {
       expect(await count()).toBe(1);
     }
   });
-  it("an unauthenticated kind (login, setup, recover) at the cap is never refused: the oldest live rows of that kind are evicted", async () => {
-    for (const kind of ["login", "setup", "recover"] as const) {
-      await e.DB.prepare("DELETE FROM webauthn_challenges").run();
-      // 600 live rows (more than the cap, as if inserted around it), oldest first, plus one live row of another kind.
-      await e.DB.batch(
-        Array.from({ length: 600 }, (_, i) =>
-          e.DB.prepare("INSERT INTO webauthn_challenges(id,kind,payload_hash,expires_at) VALUES(?,?,?,?)").bind(`f${String(i).padStart(3, "0")}`, kind, "", T + 1_000 + i),
-        ),
-      );
-      const h = await bindingHash("refund", "inv_1", "1.00");
-      await e.DB.prepare("INSERT INTO webauthn_challenges(id,kind,payload_hash,expires_at) VALUES('other','action',?,?)").bind(h, T + 300_000).run();
-      const c = await newChallenge(e.DB, kind, "fresh", T);
-      const n = async (k: string) => (await e.DB.prepare("SELECT count(*) AS n FROM webauthn_challenges WHERE kind=?").bind(k).first<{ n: number }>())!.n;
-      expect(await n(kind)).toBe(MAX_LIVE_CHALLENGES);
-      expect(await n("action")).toBe(1); // other kinds are untouched
-      // The newest 499 flood rows and the fresh one remain; the oldest went.
-      expect(await e.DB.prepare("SELECT 1 AS x FROM webauthn_challenges WHERE id='f000'").first()).toBeNull();
-      expect(await e.DB.prepare("SELECT 1 AS x FROM webauthn_challenges WHERE id='f599'").first()).not.toBeNull();
-      expect(await challengeCheck(e.DB, kind, "fresh", T + 1)(c)).toBe(true);
-    }
-  });
-  it("the cap is per kind: a full login kind does not block action or add challenges", async () => {
+  it("the cap is per kind: a full action kind does not block add challenges, and pre-sign-in ones are never stored", async () => {
     await e.DB.batch(
       Array.from({ length: 500 }, (_, i) =>
-        e.DB.prepare("INSERT INTO webauthn_challenges(id,kind,payload_hash,expires_at) VALUES(?,?,?,?)").bind(`l${i}`, "login", "", T + 300_000),
+        e.DB.prepare("INSERT INTO webauthn_challenges(id,kind,payload_hash,expires_at) VALUES(?,?,?,?)").bind(`a${i}`, "action", "", T + 300_000),
       ),
     );
-    const h = await bindingHash("refund", "inv_1", "1.00");
-    const a = await newChallenge(e.DB, "action", h, T);
     expect(await newChallenge(e.DB, "add", "", T)).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(await count()).toBe(502);
-    expect(await challengeCheck(e.DB, "action", h, T + 1)(a)).toBe(true);
+    await newSignedChallenge(S, "login", "", T);
+    expect(await count()).toBe(501);
   });
   it("bindingHash is sha256Hex of the parts joined with |", async () => {
     expect(await bindingHash("a", "b", "c")).toBe(await sha256Hex("a|b|c"));
     expect(await bindingHash("a", "b")).not.toBe(await bindingHash("b", "a"));
+  });
+});
+
+describe("pre-sign-in challenges (setup, recover, login): signed, stored only when spent", () => {
+  it("are 40 bytes of unpadded base64url, never written at issue", async () => {
+    const c = await newSignedChallenge(S, "login", "", T);
+    expect(c).toMatch(/^[A-Za-z0-9_-]{54}$/);
+    expect(await newSignedChallenge(S, "login", "", T)).not.toBe(c);
+    expect(await count()).toBe(0);
+  });
+  it("pass once: the first check stores it, a second use fails", async () => {
+    const h = await bindingHash("binder", "code");
+    const c = await newSignedChallenge(S, "setup", h, T);
+    const check = signedChallengeCheck(e.DB, S, "setup", h, T + 1);
+    expect(await check(c)).toBe(true);
+    expect(await check(c)).toBe(false);
+    expect(await count()).toBe(1);
+  });
+  it("concurrent checks of one challenge: exactly one passes", async () => {
+    const c = await newSignedChallenge(S, "login", "", T);
+    const check = signedChallengeCheck(e.DB, S, "login", "", T + 1);
+    const r = await Promise.all(Array.from({ length: 8 }, () => check(c)));
+    expect(r.filter(Boolean)).toHaveLength(1);
+  });
+  it("a wrong kind, payload, secret, a tampered or expired token fails and stores nothing", async () => {
+    const h = await bindingHash("binder");
+    const c = await newSignedChallenge(S, "login", h, T);
+    expect(await signedChallengeCheck(e.DB, S, "recover", h, T + 1)(c)).toBe(false);
+    expect(await signedChallengeCheck(e.DB, S, "login", await bindingHash("other"), T + 1)(c)).toBe(false);
+    expect(await signedChallengeCheck(e.DB, "another-secret", "login", h, T + 1)(c)).toBe(false);
+    const flipped = (c[0] === "A" ? "B" : "A") + c.slice(1);
+    expect(await signedChallengeCheck(e.DB, S, "login", h, T + 1)(flipped)).toBe(false);
+    expect(await signedChallengeCheck(e.DB, S, "login", h, T + 1)("not base64!")).toBe(false);
+    expect(await signedChallengeCheck(e.DB, S, "login", h, T + 300_000)(c)).toBe(false); // the expiry is exclusive
+    expect(await count()).toBe(0);
+    expect(await signedChallengeCheck(e.DB, S, "login", h, T + 299_999)(c)).toBe(true);
+  });
+  it("a flood of starts cannot evict the owner's challenge", async () => {
+    const owner = await newSignedChallenge(S, "login", "owner", T);
+    for (let i = 0; i < 2000; i++) await newSignedChallenge(S, "login", `flood${i}`, T + 1);
+    expect(await count()).toBe(0);
+    expect(await signedChallengeCheck(e.DB, S, "login", "owner", T + 2)(owner)).toBe(true);
+  });
+  it("spent rows past their expiry are dropped by the next check", async () => {
+    const a = await newSignedChallenge(S, "login", "", T);
+    expect(await signedChallengeCheck(e.DB, S, "login", "", T + 1)(a)).toBe(true);
+    const b = await newSignedChallenge(S, "login", "", T + 300_001);
+    expect(await signedChallengeCheck(e.DB, S, "login", "", T + 300_002)(b)).toBe(true);
+    expect(await count()).toBe(1);
   });
 });

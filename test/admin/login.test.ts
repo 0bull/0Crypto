@@ -151,8 +151,8 @@ describe("passkey sign-in", () => {
   });
 });
 
-describe("a full login challenge cap", () => {
-  it("never locks the owner out: a fresh sign-in still works and the table stays bounded", async () => {
+describe("a flood of sign-in starts", () => {
+  it("never locks the owner out: starting a sign-in stores nothing, so nothing can be evicted", async () => {
     const exp = Date.now() + 300_000;
     // A flood from two addresses at their per-client limit keeps the login kind full (and past it).
     await e.DB.batch(
@@ -161,12 +161,13 @@ describe("a full login challenge cap", () => {
     const loginRows = async () => (await e.DB.prepare("SELECT count(*) AS n FROM webauthn_challenges WHERE kind='login'").first<{ n: number }>())!.n;
     try {
       const a = await assertion();
+      const before = await loginRows();
       // The flood goes on while the owner signs in.
       for (let i = 0; i < 20; i++) {
         const p = await preAuthPage(`${BASE}/admin/login`);
         expect((await call(`${BASE}/admin/login/options`, { cookie: p.cookie, form: { csrf: p.csrf } })).status).toBe(200);
       }
-      expect(await loginRows()).toBeLessThanOrEqual(500);
+      expect(await loginRows()).toBe(before); // issuing a pre-sign-in challenge writes no row
       const r = await call(`${BASE}/admin/login`, { cookie: a.page.cookie, form: { csrf: a.page.csrf, assertion: a.assertion } });
       expect(r.status).toBe(303);
       expect(r.headers.get("location")).toBe("/admin");

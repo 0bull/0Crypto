@@ -5,7 +5,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { clientIpKey } from "../core/ip";
 import { clearSettingsCache, publicOrigin } from "../settings";
 import { page } from "../web/layout";
-import { bindingHash, ChallengeLimit, challengeCheck, newChallenge, type ChallengeKind } from "./challenges";
+import { bindingHash, newSignedChallenge, signedChallengeCheck, type PreAuthKind } from "./challenges";
 import { AuthShell, Csrf } from "./layout";
 import { Field, Flash, Panel } from "./ui";
 import { publicRp, requestRp, type RelyingParty, type RpRefusal } from "./rp";
@@ -51,7 +51,6 @@ const PRINTED = "A new code was printed to your Worker logs.";
 const REG_FAILED = "The passkey could not be created or the request expired. Try again.";
 const ALREADY_LISTED = "That passkey is already registered. Sign in with it instead.";
 const TOO_FAST = "Too many passkey requests from this address. Wait a minute and try again.";
-const BUSY = "Too many pending passkey requests. Try again in a few minutes.";
 const RECOVERED = "A new passkey was added with the ADMIN_RECOVERY_CODE secret. Every device was signed out. Delete that secret now.";
 /** An attestation or assertion is a few kilobytes at most; anything far larger is not parsed. */
 const MAX_CEREMONY_JSON = 64 * 1024;
@@ -94,14 +93,8 @@ function parseJson(raw: string): unknown {
   }
 }
 
-async function issue(c: Ctx, kind: ChallengeKind, payloadHash: string): Promise<string | Response> {
-  try {
-    return await newChallenge(c.env.DB, kind, payloadHash, Date.now());
-  } catch (e) {
-    if (e instanceof ChallengeLimit) return c.json({ error: BUSY }, 429);
-    throw e;
-  }
-}
+/** A pre-sign-in challenge: signed, not stored, so no flood of starts can evict or refuse it (challenges.ts). */
+const issue = (c: Ctx, kind: PreAuthKind, payloadHash: string): Promise<string> => newSignedChallenge(c.env.SESSION_SECRET, kind, payloadHash, Date.now());
 
 const claimed = async (db: D1Database): Promise<boolean> => (await db.prepare("SELECT 1 AS x FROM passkeys LIMIT 1").first()) !== null;
 
@@ -423,7 +416,6 @@ export function registerAuth(app: Hono<AdminEnv>): void {
     const code = await checkCode(c.env, clientIpKey(c), "setup", formStr(form, "code"), Date.now());
     if (!code.ok) return c.json({ error: code.error }, code.status);
     const challenge = await issue(c, "setup", await bindingHash(binderOf(c), code.hash));
-    if (challenge instanceof Response) return challenge;
     return c.json({ options: await registrationOptions({ rpId: rp.rpId, userId: await userHandle(c.env.DB), challenge, exclude: [] }) });
   });
 
@@ -442,7 +434,7 @@ export function registerAuth(app: Hono<AdminEnv>): void {
     }
     const reg = await verifyRegistration({
       response: parseJson(formStr(form, "credential")),
-      check: challengeCheck(c.env.DB, "setup", await bindingHash(binderOf(c), code.hash), now),
+      check: signedChallengeCheck(c.env.DB, c.env.SESSION_SECRET, "setup", await bindingHash(binderOf(c), code.hash), now),
       origin: rp.origin,
       rpId: rp.rpId,
     });
@@ -468,7 +460,6 @@ export function registerAuth(app: Hono<AdminEnv>): void {
     const check = loginRp(c);
     if (!check.ok) return c.json({ error: check.error }, 400);
     const challenge = await issue(c, "login", await bindingHash(binderOf(c)));
-    if (challenge instanceof Response) return challenge;
     return c.json({ options: await authenticationOptions({ rpId: check.rp.rpId, challenge, allow: [] }) });
   });
 
@@ -486,7 +477,7 @@ export function registerAuth(app: Hono<AdminEnv>): void {
     const now = Date.now();
     const out = await verifyAuthentication({
       response,
-      check: challengeCheck(c.env.DB, "login", await bindingHash(binderOf(c)), now),
+      check: signedChallengeCheck(c.env.DB, c.env.SESSION_SECRET, "login", await bindingHash(binderOf(c)), now),
       origin: rp.origin,
       rpId: rp.rpId,
       passkey,
@@ -522,7 +513,6 @@ export function registerAuth(app: Hono<AdminEnv>): void {
     const code = await checkCode(c.env, clientIpKey(c), "recover", formStr(form, "code"), Date.now());
     if (!code.ok) return c.json({ error: code.error }, code.status);
     const challenge = await issue(c, "recover", await bindingHash(binderOf(c), code.hash));
-    if (challenge instanceof Response) return challenge;
     const { results } = await c.env.DB.prepare("SELECT id,transports FROM passkeys WHERE rp_id=? ORDER BY created_at, id")
       .bind(rp.rpId)
       .all<{ id: string; transports: string | null }>();
@@ -545,7 +535,7 @@ export function registerAuth(app: Hono<AdminEnv>): void {
     if (!code.ok) return recoverPage(c, code.status, { error: code.error });
     const reg = await verifyRegistration({
       response: parseJson(formStr(form, "credential")),
-      check: challengeCheck(c.env.DB, "recover", await bindingHash(binderOf(c), code.hash), now),
+      check: signedChallengeCheck(c.env.DB, c.env.SESSION_SECRET, "recover", await bindingHash(binderOf(c), code.hash), now),
       origin: rp.origin,
       rpId: rp.rpId,
     });
