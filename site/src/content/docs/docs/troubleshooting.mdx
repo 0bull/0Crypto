@@ -8,8 +8,8 @@ description: Fixes for the most common problems when setting up and running 0Cry
 The code is printed in your Worker's logs, not shown on the page.
 
 1. On the setup page press **Print a new code**.
-2. Open the Cloudflare dashboard, go to Workers & Pages, open **0crypto**, then Logs, and look for the new line that starts `0crypto setup code:` (a recovery code starts `0crypto recovery code:`).
-3. If nothing appears, wait a moment and refresh the Logs view, and check that you opened the Worker called **0crypto** in the right Cloudflare account.
+2. Open the Cloudflare dashboard, go to Workers & Pages, open **0crypto** (or the name you gave your Worker), then the **Observability** tab, and look for the new line that starts `0crypto setup code:`.
+3. If nothing appears, wait a moment and refresh the Observability view, and check that you opened the right Worker in the right Cloudflare account.
 
 A code is 6 words and is valid for 60 minutes. You can print a new one at most once every 2 minutes. Up to 3 live codes exist at a time, and printing a fourth cancels the oldest. After 5 wrong tries from your address in 10 minutes the page says "Too many wrong codes. Wait 10 minutes and try again.", so wait and try again. Read more on [Find your setup code](/docs/setup-code/).
 

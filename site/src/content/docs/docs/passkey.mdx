@@ -31,7 +31,12 @@ Open **Passkeys** in the admin menu (under **Account**). In the **Add a backup p
 
 ## Lost your passkey or moved to a new domain?
 
-On the sign-in page, choose **Lost your passkey or moved to a new domain?** The page that opens is titled **Lost your passkey or moved?** It works like the [setup code](/docs/setup-code/), but the line in the logs starts with `0crypto recovery code:`. Type the 6 words, press **Create passkey**, and the new passkey (named **Recovered** and the date) belongs to the address you are visiting.
+On the sign-in page, choose **Lost your passkey or moved to a new domain?** The page that opens is titled **Lost your passkey or moved?** You prove you own the gateway by setting a secret on the Worker, something only a person allowed to change it can do. Nothing is printed to the logs.
+
+1. Copy the recovery code the page suggests (or make up your own, at least 32 characters).
+2. In the Cloudflare dashboard open Workers & Pages, **0crypto**, then Settings, Variables and Secrets. Add a **Secret** named `ADMIN_RECOVERY_CODE` with the code as its value, and deploy. In a terminal, `npx wrangler secret put ADMIN_RECOVERY_CODE` does the same.
+3. Paste the same code into the page, press **Create passkey**, and the new passkey (named **Recovered** and the date) belongs to the address you are visiting.
+4. Delete the `ADMIN_RECOVERY_CODE` secret afterwards. Each code works only once.
 
 :::caution
 Recovery signs every device out, and it also signs out any point-of-sale tablet, which needs its PIN again. If you are on a different address than before, the page shows a box that says "This will move your gateway to" and the new address. You must tick it before you can continue. Checkout links will use the new address from then on. Do this after you attach a custom domain.

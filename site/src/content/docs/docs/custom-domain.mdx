@@ -23,11 +23,11 @@ By default your gateway lives at an address like `0crypto.your-name.workers.dev`
 
 3. On the sign-in page choose **Lost your passkey or moved to a new domain?**
 
-4. The page asks for a recovery code. Get it the same way as the setup code: Cloudflare dashboard, Workers & Pages, **0crypto**, Logs, or run `npx wrangler tail`. The line starts with `0crypto recovery code:`. See [Find your setup code](/docs/setup-code/). Press **Print a new code** if you need one.
+4. The page asks for a recovery code. Copy the one it suggests, then in the Cloudflare dashboard open Workers & Pages, **0crypto**, Settings, Variables and Secrets, and add a **Secret** named `ADMIN_RECOVERY_CODE` with that code as its value. See [Lost your passkey or moved to a new domain?](/docs/passkey/#lost-your-passkey-or-moved-to-a-new-domain).
 
-5. Type the 6 words. The page shows a box that says "This will move your gateway to https://pay.yourshop.com". Tick it, press **Create passkey**, then confirm when your device asks.
+5. Paste the code into the page. The page shows a box that says "This will move your gateway to https://pay.yourshop.com". Tick it, press **Create passkey**, then confirm when your device asks.
 
-6. Add a second passkey as a backup on the Passkeys page. Then remove the passkey for the old address.
+6. Add a second passkey as a backup on the Passkeys page. Then remove the passkey for the old address, and delete the `ADMIN_RECOVERY_CODE` secret.
 
 </Steps>
 

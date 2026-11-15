@@ -13,7 +13,17 @@ When a new version of 0Crypto comes out, your deployment does not change by itse
 
 1. **Back up first.** On your computer, in your copy of the repository, run `npx wrangler d1 export DB --remote --output backup.sql`. Keep the file. See [Security and backups](/docs/security/).
 
-2. On GitHub, open your copy of the 0Crypto repository. Use **Sync fork** (or merge the original repository into yours) to bring in the newest version. Check the original repository for any release notes or new settings.
+2. Merge the newest version into your copy. The Deploy button made a copy of the repository in your GitHub account, not a fork, so GitHub has no **Sync fork** button for it. On your computer run:
+
+   ```sh
+   git clone https://github.com/YOUR-NAME/YOUR-COPY.git && cd YOUR-COPY
+   git remote add upstream https://github.com/0bull/0Crypto.git
+   git fetch upstream
+   git merge upstream/main --allow-unrelated-histories
+   git push
+   ```
+
+   If Git reports a clash in `wrangler.jsonc`, keep your own lines for the database and namespace IDs Cloudflare wrote there, and take everything else from the new version. If your copy is a real fork, **Sync fork** on GitHub does the same. Check the original repository for release notes or new settings.
 
 3. Cloudflare rebuilds and deploys. In the Cloudflare dashboard open Workers & Pages, **0crypto**, Deployments, and wait for the new one to show as successful. If a database change fails, the new code is not deployed and the old gateway keeps running.
 
@@ -25,7 +35,7 @@ If you deployed by hand instead of with the button, run `npm run deploy` in your
 
 Never change your seed phrase during an upgrade. If your hot wallet addresses changed on the Wallets page, something is wrong.
 
-If you edited `wrangler.jsonc` in your copy (routed mode or privacy routing settings), check those settings after syncing. GitHub may ask you to resolve a clash if the same lines changed.
+If you edited `wrangler.jsonc` in your copy (routed mode or privacy routing settings), check those settings after merging. Git asks you to resolve a clash if the same lines changed.
 
 ## Reset a local test database
 

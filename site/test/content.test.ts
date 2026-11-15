@@ -136,11 +136,12 @@ describe("labels confirmed against the gateway code", () => {
       expect(s).toContain(t);
     }
   });
-  it("passkey and custom-domain use the exact recovery link text and log line", () => {
+  it("passkey and custom-domain use the exact recovery link text and the recovery secret's name", () => {
     for (const slug of ["passkey", "custom-domain", "troubleshooting"]) {
       expect(read(slug), slug).toContain("Lost your passkey or moved to a new domain?");
     }
-    expect(read("passkey")).toContain("0crypto recovery code:");
+    for (const slug of ["passkey", "custom-domain"]) expect(read(slug), slug).toContain("ADMIN_RECOVERY_CODE");
+    expect(read("passkey")).not.toContain("0crypto recovery code:");
     expect(read("custom-domain")).toContain("This will move your gateway to");
     expect(read("passkey")).toContain("Create passkey");
   });

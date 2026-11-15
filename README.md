@@ -54,7 +54,7 @@ With privacy routing on, each payment lands on a fresh address and passes throug
 You need a Cloudflare account (Workers Paid plan) and about ten minutes, most of it waiting for the first build.
 
 1. **Deploy.** Press the **Deploy to Cloudflare** button above. Keep the name `0crypto` and press **Create and deploy**. Cloudflare creates the database and the queues for you.
-2. **Claim it.** Open your new Worker's address and go to `/admin`. It asks for a setup code: six words printed in the Worker's logs (**Workers & Pages → 0crypto → Logs**). Nobody without access to your Cloudflare account can claim it.
+2. **Claim it.** Open your new Worker's address and go to `/admin`. It asks for a setup code: six words printed in the Worker's logs (**Workers & Pages → 0crypto → Observability**). Nobody without access to your Cloudflare account can claim it.
 3. **Create your passkey.** Your phone or laptop saves it. That is your sign-in from now on.
 4. **Connect a wallet.** Paste your Bitcoin wallet's public key (xpub or zpub), or pick other coins.
 5. **Take a test payment.** The welcome wizard creates a $1 test invoice so you can watch a payment arrive.
