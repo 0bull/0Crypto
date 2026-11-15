@@ -326,7 +326,7 @@ async function confirm(c: Ctx, row: Row, meta: Meta): Promise<Advance> {
     c.env.DB.prepare("UPDATE sweeps SET status='confirmed', req=? WHERE id=? AND status='pending' AND step=?").bind(progress(c.now), row.id, row.step),
     ...ids.map((pid) =>
       c.env.DB.prepare(
-        "UPDATE payments SET swept_at=?, sweep_tx=?, sweep_error=NULL, sweep_retry_at=NULL, sweep_paid_attempts=0, sweep_solo=0, unexpected_left=? WHERE id=? AND swept_at IS NULL AND EXISTS (SELECT 1 FROM sweeps WHERE id=? AND status='confirmed' AND tx=?)",
+        "UPDATE payments SET swept_at=?, swept_base=received, sweep_tx=?, sweep_error=NULL, sweep_retry_at=NULL, sweep_paid_attempts=0, sweep_solo=0, unexpected_left=? WHERE id=? AND swept_at IS NULL AND EXISTS (SELECT 1 FROM sweeps WHERE id=? AND status='confirmed' AND tx=?)",
       ).bind(c.now, row.tx, left.get(pid) ?? 0, pid, row.id, row.tx),
     ),
   ]);
@@ -386,7 +386,7 @@ async function sweptEarlier(c: Ctx, ps: PaymentRow[]): Promise<boolean> {
   await c.env.DB.batch(
     ids.map((id) =>
       c.env.DB.prepare(
-        "UPDATE payments SET swept_at=?, sweep_tx=?, sweep_error=NULL, sweep_retry_at=NULL, sweep_paid_attempts=0, sweep_solo=0, unexpected_left=? WHERE id=? AND swept_at IS NULL",
+        "UPDATE payments SET swept_at=?, swept_base=received, sweep_tx=?, sweep_error=NULL, sweep_retry_at=NULL, sweep_paid_attempts=0, sweep_solo=0, unexpected_left=? WHERE id=? AND swept_at IS NULL",
       ).bind(c.now, txs[i], left(id), id),
     ),
   );

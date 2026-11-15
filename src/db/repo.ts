@@ -54,6 +54,8 @@ export interface PaymentRow {
   expiry_received?: bigint;
   /** EVM sweeps (migration 0005). Written only by the sweeper, never by applyTransition. */
   swept_at?: number | null;
+  /** Migration 0029: `received` when the EVM or Solana sweeper last swept the address (atomic units); null before. */
+  swept_base?: bigint | null;
   sweep_tx?: string | null;
   sweep_error?: string | null;
   sweep_retry_at?: number | null;
@@ -81,6 +83,8 @@ export interface Transition {
   payment: PaymentRow;
   invoice: InvoiceRow;
   events: EventRow[];
+  /** A swept EVM or Solana address holds the payment's asset again: clear the swept mark so the sweeper takes it again. */
+  resweep?: boolean;
 }
 
 type Raw = Record<string, unknown>;
@@ -141,6 +145,7 @@ function toPayment(r: Raw): PaymentRow {
     ...(r.later_minor != null ? { later_minor: big(r.later_minor) } : {}),
     ...(r.expiry_received != null ? { expiry_received: big(r.expiry_received) } : {}),
     swept_at: (r.swept_at as number | null) ?? null,
+    swept_base: bigOrNull(r.swept_base),
     sweep_tx: (r.sweep_tx as string | null) ?? null,
     sweep_error: (r.sweep_error as string | null) ?? null,
     sweep_retry_at: (r.sweep_retry_at as number | null) ?? null,
@@ -329,6 +334,10 @@ export async function applyTransition(db: D1Database, t: Transition): Promise<vo
         .bind(e.id, e.created_at, e.type, e.invoice_id, e.payload),
     ),
   ];
+  if (t.resweep)
+    stmts.push(
+      db.prepare("UPDATE payments SET swept_at=NULL, sweep_tx=NULL, sweep_error=NULL, sweep_retry_at=NULL WHERE id=? AND swept_at IS NOT NULL").bind(t.payment.id),
+    );
   await db.batch(stmts);
 }
 

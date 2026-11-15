@@ -1,3 +1,4 @@
+import { isEvmChain } from "../chains/evm/config";
 import type { EventRow, InvoiceRow, InvoiceStatus, PaymentRow, PaymentStatus, Transition } from "../db/repo";
 import { getAsset } from "./assets";
 import { fiatMinorFromAtomic } from "./money";
@@ -82,17 +83,23 @@ export interface StepInput {
 export async function step(input: StepInput): Promise<Transition | null> {
   const { invoice, payment, others, now } = input;
   const decimals = getAsset(payment.asset).decimals;
+  // EVM and Solana observe the address's balance, which a sweep empties: what was swept out counts as received, so a
+  // refill to a swept address is seen (and the payment goes back to the sweeper, `resweep`).
+  const balanceChain = isEvmChain(payment.chain) || payment.chain === "sol";
+  const base = balanceChain ? (payment.swept_base ?? 0n) : 0n;
+  const resweep = balanceChain && payment.swept_at != null && input.obs.received > 0n;
+  const raw: Observation = base > 0n ? { ...input.obs, received: base + input.obs.received, final: base + input.obs.final } : input.obs;
 
   // A confirmed payment, or one under a sweep lock or already swept (whatever its status: a swept partial payment reads 0 at its emptied address), never loses amounts: a lower observation (lagging explorer, empty list, shallow reorg) is
   // ignored, so credit and paid_minor only grow. Other states follow the observation (a real double-spend or RBF).
   const obs: Observation =
     payment.status === "confirmed" || payment.swept_at != null || payment.sweep_tx != null
       ? {
-          received: input.obs.received > payment.received ? input.obs.received : payment.received,
-          final: input.obs.final > payment.final ? input.obs.final : payment.final,
-          txids: [...new Set([...payment.txids, ...input.obs.txids])],
+          received: raw.received > payment.received ? raw.received : payment.received,
+          final: raw.final > payment.final ? raw.final : payment.final,
+          txids: [...new Set([...payment.txids, ...raw.txids])],
         }
-      : input.obs;
+      : raw;
 
   // Unexpected deposits (other assets at an EVM address) are never credited. They follow the observation when it
   // reports them, except once the payment is confirmed, locked or swept: then each asset keeps its highest reading, so
@@ -227,5 +234,5 @@ export async function step(input: StepInput): Promise<Transition | null> {
     newInvoice.overpaid !== invoice.overpaid;
 
   if (!paymentChanged && !invoiceChanged && events.length === 0) return null;
-  return { payment: newPayment, invoice: newInvoice, events };
+  return { payment: newPayment, invoice: newInvoice, events, ...(resweep && obs.received > payment.received ? { resweep: true } : {}) };
 }

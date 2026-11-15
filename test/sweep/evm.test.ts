@@ -274,7 +274,9 @@ describe("runEvmSweep", () => {
     expect((await getPayment(e.DB, a.id))!.swept_at).toBeNull();
     sw.polygon.receipts[sent.tx!.toLowerCase()] = { status: "success", block: 936n };
     await runEvmSweep(e, "polygon", t + 120_000);
-    expect((await getPayment(e.DB, a.id))!.swept_at).not.toBeNull();
+    const done = (await getPayment(e.DB, a.id))!;
+    expect(done.swept_at).not.toBeNull();
+    expect(done.swept_base).toBe(done.received); // what the address held, so a later refill is seen on top
   });
 
   it("a pending sweep row blocks a second send", async () => {

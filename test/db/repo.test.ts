@@ -168,6 +168,16 @@ describe("applyTransition", () => {
     expect(e?.n).toBe(1);
   });
 
+  it("a resweep transition clears the swept mark in the same batch", async () => {
+    await insertInvoice(db(), invoice("inv_rs"));
+    const p = payment("pay_rs", "inv_rs");
+    await insertPayment(db(), p);
+    await db().prepare("UPDATE payments SET swept_at=5, sweep_tx='0xs', swept_base='10' WHERE id='pay_rs'").run();
+    await applyTransition(db(), { payment: { ...p, received: 15n, final: 15n }, invoice: invoice("inv_rs"), events: [], resweep: true });
+    const after = (await getPayment(db(), "pay_rs"))!;
+    expect(after).toMatchObject({ swept_at: null, sweep_tx: null, swept_base: 10n, received: 15n });
+  });
+
   it("is atomic when the invoice update fails", async () => {
     await insertInvoice(db(), invoice("inv_at"));
     const p = payment("pay_at", "inv_at");

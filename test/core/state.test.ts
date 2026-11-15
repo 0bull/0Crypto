@@ -625,4 +625,34 @@ describe("step: EVM balance observations", () => {
     expect(i).toMatchObject({ status: "paid", paid_minor: 5000n });
     expect(swept?.events ?? []).toEqual([]);
   });
+
+  describe("a refill after a sweep", () => {
+    const swept = () =>
+      evmPayment({
+        received: 100_000_000n, final: 100_000_000n, status: "confirmed", detected_at: T + MIN, confirmed_at: T + 2 * MIN,
+        credited_minor: 10_000n, credit_price_e8: USDC_PRICE, swept_at: T + 10 * MIN, sweep_tx: "0xsweep", swept_base: 100_000_000n,
+      });
+    const paid = () => invoice({ price_minor: 10_000n, status: "paid", paid_minor: 10_000n });
+    const at = (p: PaymentRow, o: Observation, now = T + 2 * 60 * MIN) => step({ invoice: paid(), payment: p, others: [], obs: o, now, currentPriceE8: async () => USDC_PRICE });
+
+    it("a smaller second deposit is credited on top and sends the payment back to the sweeper", async () => {
+      const r = await at(swept(), { received: 90_000_000n, final: 90_000_000n, txids: [] });
+      expect(r!.payment).toMatchObject({ received: 190_000_000n, final: 190_000_000n, credited_minor: 19_000n });
+      expect(r!.invoice).toMatchObject({ status: "paid", paid_minor: 19_000n, overpaid: true });
+      expect(r!.resweep).toBe(true);
+    });
+    it("an empty swept address changes nothing", async () => {
+      expect(await at(swept(), { received: 0n, final: 0n, txids: [] })).toBeNull();
+    });
+    it("once swept again, the emptied address keeps the full credit", async () => {
+      const again = { ...swept(), received: 190_000_000n, final: 190_000_000n, credited_minor: 19_000n, swept_base: 190_000_000n, later_atomic: 90_000_000n, later_minor: 9_000n, locked_received: 100_000_000n, expiry_received: 100_000_000n };
+      const r = await step({ invoice: invoice({ price_minor: 10_000n, status: "paid", paid_minor: 19_000n, overpaid: true }), payment: again, others: [], obs: { received: 0n, final: 0n, txids: [] }, now: T + 3 * 60 * MIN, currentPriceE8: noPrice });
+      expect(r).toBeNull();
+    });
+    it("UTXO chains never add a swept base", async () => {
+      const utxo = payment({ received: 50_000n, final: 50_000n, status: "confirmed", detected_at: T + MIN, confirmed_at: T + MIN, credited_minor: 5000n, credit_price_e8: BTC_100K, swept_base: 50_000n });
+      const r = await step({ invoice: invoice({ status: "paid", paid_minor: 5000n }), payment: utxo, others: [], obs: { received: 50_000n, final: 50_000n, txids: [] }, now: T + 2 * 60 * MIN, currentPriceE8: noPrice });
+      expect(r).toBeNull();
+    });
+  });
 });

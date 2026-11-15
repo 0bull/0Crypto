@@ -296,7 +296,7 @@ async function reconcile(env: Env, c: Chain, now: number): Promise<number> {
             const p = byId.get(id);
             const left = p && sent && fullTokens(p, c.chain).some((t) => !sent.has(t.toLowerCase())) ? 1 : 0;
             stmts.push(
-              env.DB.prepare("UPDATE payments SET swept_at=?, sweep_tx=?, sweep_error=NULL, sweep_retry_at=NULL, unexpected_left=? WHERE id=? AND swept_at IS NULL").bind(now, hit!.hash, left, id),
+              env.DB.prepare("UPDATE payments SET swept_at=?, swept_base=received, sweep_tx=?, sweep_error=NULL, sweep_retry_at=NULL, unexpected_left=? WHERE id=? AND swept_at IS NULL").bind(now, hit!.hash, left, id),
             );
           }
         }

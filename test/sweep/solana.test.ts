@@ -301,6 +301,7 @@ describe("runSolanaSweep: SOL and USDC deposits", () => {
     await run(T0 + 30 * MIN);
     const after = (await getPayment(e.DB, p.id))!;
     expect(after.swept_at).toBe(T0 + 30 * MIN);
+    expect(after.swept_base).toBe(after.received);
     expect(after.sweep_tx).toBe(s.sig);
     expect((await sweeps())[0]!.status).toBe("confirmed");
     expect(sim.lamports[p.address]).toBe(0n);
