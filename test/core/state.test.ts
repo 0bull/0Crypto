@@ -411,6 +411,53 @@ describe("step", () => {
     });
   });
 
+  describe("the rate lock covers only funds seen inside it", () => {
+    const at = (now: number, o: Observation, prev?: Transition | null, price: () => Promise<bigint> = noPrice) =>
+      step({ invoice: prev?.invoice ?? invoice(), payment: prev?.payment ?? payment(), others: [], obs: o, now, currentPriceE8: price });
+
+    it("dust inside the lock, the rest days later: the rest is credited at the current price and the invoice is late", async () => {
+      const dust = await at(T + 5 * MIN, obs(1n, 1n));
+      expect(dust!.payment).toMatchObject({ credit_price_e8: BTC_100K, credited_minor: 0n, locked_received: 1n });
+      const rest = await at(T + 3 * DAY, obs(50_000n, 50_000n), dust, async () => BTC_80K);
+      // 1 sat at the locked price (0 cents), 49,999 sat at $80k = 3999 cents: short of $50, not paid at the old rate.
+      expect(rest!.payment).toMatchObject({ credited_minor: 3999n, later_atomic: 49_999n });
+      expect(rest!.invoice).toMatchObject({ status: "partially_paid", paid_minor: 3999n });
+      const full = await at(T + 3 * DAY + MIN, obs(63_000n, 63_000n), rest, async () => BTC_80K);
+      expect(full!.invoice).toMatchObject({ status: "paid", late: true });
+      expect(types(full)).toContain("invoice.late_payment");
+    });
+
+    it("an RBF'd tx inside the lock does not keep the lock for a later resend", async () => {
+      const seen = await at(T + 5 * MIN, obs(50_000n, 0n));
+      expect(seen!.payment.locked_received).toBe(50_000n);
+      const gone = await at(T + 30 * MIN, { received: 0n, final: 0n, txids: [] }, seen);
+      expect(gone!.payment).toMatchObject({ status: "awaiting", locked_received: 0n });
+      const resent = await at(T + 2 * DAY, obs(50_000n, 50_000n), gone, async () => BTC_80K);
+      expect(resent!.payment).toMatchObject({ credited_minor: 4000n, credit_price_e8: BTC_80K });
+      expect(resent!.invoice).toMatchObject({ status: "partially_paid", paid_minor: 4000n });
+    });
+
+    it("a top-up inside the lock stays at the locked price", async () => {
+      const first = await at(T + 5 * MIN, obs(20_000n, 20_000n));
+      const more = await at(T + 10 * MIN, obs(50_000n, 50_000n), first);
+      expect(more!.payment).toMatchObject({ credited_minor: 5000n, later_atomic: 0n });
+      expect(more!.invoice).toMatchObject({ status: "paid", late: false });
+    });
+
+    it("a row written before the fix keeps its credit, and a top-up after the lock uses the current price", async () => {
+      const run = (p: PaymentRow, inv: InvoiceRow, o: Observation) =>
+        step({ invoice: inv, payment: p, others: [], obs: o, now: T + 2 * DAY, currentPriceE8: async () => BTC_80K });
+      const locked = payment({ received: 50_000n, final: 50_000n, txids: ["tx1"], status: "confirmed", detected_at: T + 5 * MIN, confirmed_at: T + 5 * MIN, credited_minor: 5000n, credit_price_e8: BTC_100K });
+      const paidInv = invoice({ status: "paid", paid_minor: 5000n });
+      expect(await run(locked, paidInv, obs(50_000n, 50_000n))).toBeNull();
+      expect((await run(locked, paidInv, obs(60_000n, 60_000n)))!.payment).toMatchObject({ credited_minor: 5800n, locked_received: 50_000n, later_atomic: 10_000n });
+      const late = payment({ received: 50_000n, final: 50_000n, txids: ["tx1"], status: "confirmed", detected_at: T + 30 * MIN, confirmed_at: T + 30 * MIN, credited_minor: 4000n, credit_price_e8: BTC_80K });
+      const partInv = invoice({ status: "partially_paid", paid_minor: 4000n });
+      expect(await run(late, partInv, obs(50_000n, 50_000n))).toBeNull();
+      expect((await run(late, partInv, obs(60_000n, 60_000n)))!.payment).toMatchObject({ credited_minor: 4800n, later_atomic: 60_000n, later_minor: 4800n });
+    });
+  });
+
   it("txids in a different order are not a change", async () => {
     const o = { received: 50_000n, final: 50_000n, txids: ["b", "a"] };
     const first = await step({ invoice: invoice(), payment: payment(), others: [], obs: o, now: T + 15 * MIN, currentPriceE8: noPrice });
@@ -439,8 +486,8 @@ describe("step", () => {
         credit_price_e8: BTC_100K,
         ...o,
       });
-    const run = (p: PaymentRow, inv: InvoiceRow, o: Observation, at = T + 30 * MIN) =>
-      step({ invoice: inv, payment: p, others: [], obs: o, now: at, currentPriceE8: noPrice });
+    const run = (p: PaymentRow, inv: InvoiceRow, o: Observation, at = T + 30 * MIN, price: () => Promise<bigint> = noPrice) =>
+      step({ invoice: inv, payment: p, others: [], obs: o, now: at, currentPriceE8: price });
     const paidInv = () => invoice({ status: "paid", paid_minor: 5000n });
 
     it("once swept, a partial payment's amounts never decrease either (a 0 balance does not regress credit)", async () => {
@@ -472,7 +519,8 @@ describe("step", () => {
       const p = confirmed();
       const inv = paidInv();
       expect(await run(p, inv, { received: 0n, final: 0n, txids: [] })).toBeNull();
-      const up = await run(p, inv, { received: 60_000n, final: 60_000n, txids: ["tx1", "tx2"] });
+      // The top-up arrives after the rate lock, so it is credited at the current price (here unchanged).
+      const up = await run(p, inv, { received: 60_000n, final: 60_000n, txids: ["tx1", "tx2"] }, T + 30 * MIN, async () => BTC_100K);
       expect(up!.payment).toMatchObject({ received: 60_000n, final: 60_000n, credited_minor: 6000n, txids: ["tx1", "tx2"] });
       expect(up!.invoice).toMatchObject({ status: "paid", paid_minor: 6000n, overpaid: true });
       expect(types(up)).toEqual([]);

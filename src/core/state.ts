@@ -29,6 +29,40 @@ const sameList = (a: string[], b: string[]): boolean => {
   return x.length === y.length && x.every((v, i) => v === y[i]);
 };
 
+/** What a payment's credit is built from (PaymentRow, migration 0028). */
+interface CreditState {
+  locked: bigint;
+  laterAtomic: bigint;
+  laterMinor: bigint;
+  byExpiry: bigint;
+}
+
+/**
+ * The stored credit state, or for a row written before migration 0028 the same values derived from how it was credited
+ * then: a payment credited at its locked price had all of its funds under the lock; one credited at another price had
+ * none. Funds seen before expiry follow detected_at.
+ */
+function creditState(p: PaymentRow, expiresAt: number): CreditState {
+  const seen = p.received > p.final ? p.received : p.final;
+  const lockedLegacy =
+    p.credit_price_e8 === null
+      ? p.detected_at !== null && p.detected_at <= p.rate_locked_until
+        ? seen
+        : 0n
+      : p.credit_price_e8 === p.price_e8
+        ? seen
+        : 0n;
+  const laterLegacy = p.credit_price_e8 !== null && p.credit_price_e8 !== p.price_e8;
+  return {
+    locked: p.locked_received ?? lockedLegacy,
+    laterAtomic: p.later_atomic ?? (laterLegacy ? p.final : 0n),
+    laterMinor: p.later_minor ?? (laterLegacy ? p.credited_minor : 0n),
+    byExpiry: p.expiry_received ?? (p.detected_at !== null && p.detected_at <= expiresAt ? seen : 0n),
+  };
+}
+
+const minBig = (a: bigint, b: bigint): bigint => (a < b ? a : b);
+
 export interface StepInput {
   invoice: InvoiceRow;
   payment: PaymentRow;
@@ -40,8 +74,10 @@ export interface StepInput {
 
 /**
  * Pure payment + invoice state machine. Returns null when neither row changes and no event is due.
- * The only I/O is `currentPriceE8`, called at most once, when the first final amount arrives for a payment
- * first seen after its rate lock. The lock and the late flag are judged at first sighting (`detected_at`).
+ * The rate lock covers only the funds seen while it ran: they are credited at the locked price, and any final amount
+ * beyond them is credited at the price current when it is first credited. Funds that vanish (RBF, double spend) take
+ * their lock with them. The late flag is set when the payment completing the invoice includes funds first seen after
+ * expiry. The only I/O is `currentPriceE8`, called at most once per step, when final funds outside the lock first appear.
  */
 export async function step(input: StepInput): Promise<Transition | null> {
   const { invoice, payment, others, now } = input;
@@ -73,12 +109,24 @@ export async function step(input: StepInput): Promise<Transition | null> {
     payment.chain === "ln" && input.obs.settledAt !== undefined ? Math.min(Math.max(input.obs.settledAt, payment.created_at), now) : now;
   const detectedAt = payment.detected_at ?? (obs.received > 0n ? seenAt : null);
 
-  // Credit rate: fixed the first time final > 0. Locked if the funds were first seen within the lock.
-  let creditPrice = payment.credit_price_e8;
-  if (creditPrice === null && obs.final > 0n) {
-    creditPrice = (detectedAt ?? now) <= payment.rate_locked_until ? payment.price_e8 : await input.currentPriceE8();
+  // Credit. While the lock runs it covers whatever is seen; after it, it can only shrink (funds that vanished). The same
+  // for funds seen before expiry, which decide the late flag.
+  const prev = creditState(payment, invoice.expires_at);
+  const locked = seenAt <= payment.rate_locked_until ? obs.received : minBig(prev.locked, obs.received);
+  const byExpiry = seenAt <= invoice.expires_at ? obs.received : minBig(prev.byExpiry, obs.received);
+  const lockedFinal = minBig(obs.final, locked);
+  const laterAtomic = obs.final - lockedFinal;
+  let laterMinor = prev.laterMinor;
+  let laterPrice: bigint | null = null;
+  if (laterAtomic > prev.laterAtomic) {
+    laterPrice = await input.currentPriceE8();
+    laterMinor += fiatMinorFromAtomic(laterAtomic - prev.laterAtomic, decimals, laterPrice);
+  } else if (laterAtomic < prev.laterAtomic) {
+    laterMinor = prev.laterAtomic === 0n ? 0n : (prev.laterMinor * laterAtomic) / prev.laterAtomic;
   }
-  const credited = creditPrice === null ? payment.credited_minor : fiatMinorFromAtomic(obs.final, decimals, creditPrice);
+  const credited = fiatMinorFromAtomic(lockedFinal, decimals, payment.price_e8) + laterMinor;
+  // The price of the first credit (shown for funds still confirming); fixed once set.
+  const creditPrice = payment.credit_price_e8 ?? (obs.final > 0n ? (lockedFinal > 0n ? payment.price_e8 : laterPrice) : null);
 
   // Payment status.
   let status: PaymentStatus;
@@ -100,6 +148,10 @@ export async function step(input: StepInput): Promise<Transition | null> {
     credited_minor: credited,
     credit_price_e8: creditPrice,
     unexpected,
+    locked_received: locked,
+    later_atomic: laterAtomic,
+    later_minor: laterMinor,
+    expiry_received: byExpiry,
   };
 
   // Invoice.
@@ -116,8 +168,8 @@ export async function step(input: StepInput): Promise<Transition | null> {
     ...invoice,
     status: invStatus,
     paid_minor: paidMinor,
-    // Late: the payment completing the invoice was first seen after expiry.
-    late: invoice.late || (!wasPaid && invStatus === "paid" && (detectedAt ?? now) > invoice.expires_at),
+    // Late: the payment completing the invoice includes funds first seen after expiry.
+    late: invoice.late || (!wasPaid && invStatus === "paid" && obs.final > byExpiry),
     overpaid: paidMinor * 100n > invoice.price_minor * 101n,
   };
 
@@ -163,6 +215,10 @@ export async function step(input: StepInput): Promise<Transition | null> {
     newPayment.confirmed_at !== payment.confirmed_at ||
     newPayment.credited_minor !== payment.credited_minor ||
     newPayment.credit_price_e8 !== payment.credit_price_e8 ||
+    locked !== prev.locked ||
+    laterAtomic !== prev.laterAtomic ||
+    laterMinor !== prev.laterMinor ||
+    byExpiry !== prev.byExpiry ||
     !sameUnexpected(newPayment.unexpected, payment.unexpected);
   const invoiceChanged =
     newInvoice.status !== invoice.status ||

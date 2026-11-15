@@ -42,6 +42,16 @@ export interface PaymentRow {
   credit_price_e8: bigint | null;
   /** Other assets' balances at the deposit address (EVM only), atomic units; null when none. Never credited. */
   unexpected: Record<AssetId, bigint> | null;
+  /**
+   * Migration 0028, written by applyTransition (src/core/state.ts creditState). Absent on rows written before it, which
+   * step derives from credit_price_e8 and detected_at. locked_received: funds the rate lock covers (seen while it ran, never
+   * grown after it); later_atomic / later_minor: the final amount credited outside the lock and what it was credited at;
+   * expiry_received: funds seen before the invoice expired (the late flag). Atomic units except later_minor (fiat minor).
+   */
+  locked_received?: bigint;
+  later_atomic?: bigint;
+  later_minor?: bigint;
+  expiry_received?: bigint;
   /** EVM sweeps (migration 0005). Written only by the sweeper, never by applyTransition. */
   swept_at?: number | null;
   sweep_tx?: string | null;
@@ -126,6 +136,10 @@ function toPayment(r: Raw): PaymentRow {
     credited_minor: big(r.credited_minor),
     credit_price_e8: bigOrNull(r.credit_price_e8),
     unexpected: parseUnexpected(r.unexpected),
+    ...(r.locked_received != null ? { locked_received: big(r.locked_received) } : {}),
+    ...(r.later_atomic != null ? { later_atomic: big(r.later_atomic) } : {}),
+    ...(r.later_minor != null ? { later_minor: big(r.later_minor) } : {}),
+    ...(r.expiry_received != null ? { expiry_received: big(r.expiry_received) } : {}),
     swept_at: (r.swept_at as number | null) ?? null,
     sweep_tx: (r.sweep_tx as string | null) ?? null,
     sweep_error: (r.sweep_error as string | null) ?? null,
@@ -160,9 +174,9 @@ const INVOICE_INSERT = `INSERT INTO invoices(${INVOICE_COLUMNS.join(",")}) VALUE
 const INVOICE_INSERT_IF_CHANGED = `INSERT INTO invoices(${INVOICE_COLUMNS.join(",")}) SELECT ${INVOICE_PLACEHOLDERS} WHERE changes()=1`;
 const INVOICE_UPDATE = `UPDATE invoices SET ${INVOICE_COLUMNS.slice(1).map((c) => `${c}=?`).join(",")} WHERE id=?`;
 const PAYMENT_INSERT =
-  "INSERT INTO payments(id,invoice_id,asset,chain,address,derivation_index,reference,expected,price_e8,rate_locked_until,received,final,txids,status,created_at,detected_at,confirmed_at,credited_minor,credit_price_e8,unexpected) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+  "INSERT INTO payments(id,invoice_id,asset,chain,address,derivation_index,reference,expected,price_e8,rate_locked_until,received,final,txids,status,created_at,detected_at,confirmed_at,credited_minor,credit_price_e8,unexpected,locked_received,later_atomic,later_minor,expiry_received) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 const PAYMENT_UPDATE =
-  "UPDATE payments SET invoice_id=?,asset=?,chain=?,address=?,derivation_index=?,reference=?,expected=?,price_e8=?,rate_locked_until=?,received=?,final=?,txids=?,status=?,created_at=?,detected_at=?,confirmed_at=?,credited_minor=?,credit_price_e8=?,unexpected=? WHERE id=?";
+  "UPDATE payments SET invoice_id=?,asset=?,chain=?,address=?,derivation_index=?,reference=?,expected=?,price_e8=?,rate_locked_until=?,received=?,final=?,txids=?,status=?,created_at=?,detected_at=?,confirmed_at=?,credited_minor=?,credit_price_e8=?,unexpected=?,locked_received=?,later_atomic=?,later_minor=?,expiry_received=? WHERE id=?";
 
 // Column order after the leading `id` (insert) / before the trailing `id` (update).
 const invoiceCols = (i: InvoiceRow) => [
@@ -202,6 +216,10 @@ const paymentCols = (p: PaymentRow) => [
   p.credited_minor.toString(),
   p.credit_price_e8 === null ? null : p.credit_price_e8.toString(),
   unexpectedJson(p.unexpected),
+  p.locked_received?.toString() ?? null,
+  p.later_atomic?.toString() ?? null,
+  p.later_minor?.toString() ?? null,
+  p.expiry_received?.toString() ?? null,
 ];
 
 /**
