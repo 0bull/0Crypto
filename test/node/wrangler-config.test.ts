@@ -16,7 +16,13 @@ const readJsonc = (path: string): Record<string, unknown> =>
  */
 const OPTIONAL_SECRETS = ["EVM_RPC_ETH", "EVM_RPC_BASE", "EVM_RPC_ARB", "EVM_RPC_POLYGON", "EVM_RPC_BSC", "TRONGRID_API_KEY", "TRON_API_URL", "TRONSAVE_API_KEY", "SOLANA_RPC_URL", "TROCADOR_API_KEY", "NWC_URI"];
 
-/** Drops what legitimately differs: paths (relative to each file), var values, and the secrets list (bound by vitest.config.ts). */
+/**
+ * Optional settings with no default: unset in wrangler.jsonc, because the Deploy to Cloudflare screen makes every var a
+ * required field. The test config binds them so a developer's environment cannot leak into tests.
+ */
+const OPTIONAL_VARS = ["PUBLIC_URL", "MERCHANT_NAME", "WEBHOOK_URL", "DOGE_BLOCKBOOK_URL", "RAILGUN_0ZK_ADDRESS", "RAILGUN_GOLDEN_OK", "RAILGUN_GOLDEN_OK_CHAINS", "XMR_ADDRESS", "TROCADOR_LIVE_OK"];
+
+/** Drops what legitimately differs: paths (relative to each file), var values, the test-only bindings, and the secrets list (bound by vitest.config.ts). */
 function shape(cfg: Record<string, unknown>) {
   const c = structuredClone(cfg) as Record<string, any>;
   delete c.$schema;
@@ -28,7 +34,7 @@ function shape(cfg: Record<string, unknown>) {
     delete db.database_id;
   }
   for (const kv of c.kv_namespaces) delete kv.id;
-  c.vars = Object.keys(c.vars).filter((k) => !OPTIONAL_SECRETS.includes(k)).sort();
+  c.vars = Object.keys(c.vars).filter((k) => !OPTIONAL_SECRETS.includes(k) && !OPTIONAL_VARS.includes(k)).sort();
   return c;
 }
 
@@ -37,28 +43,34 @@ const globMatch = (pattern: string, path: string): boolean =>
   new RegExp(`^${pattern.split("*").map((p) => p.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`).test(path);
 
 describe("test wrangler config", () => {
-  it("matches wrangler.jsonc apart from paths, var values and the test-only bindings of optional secrets", () => {
+  it("matches wrangler.jsonc apart from paths, var values and the test-only bindings of optional secrets and settings", () => {
     const prod = readJsonc("wrangler.jsonc");
     const test = readJsonc("test/wrangler.test.jsonc");
     expect(shape(test)).toEqual(shape(prod));
     expect(test.main).toBe("../src/index.ts");
   });
 
-  it("keeps the deployed config deploy-button friendly: no secrets list, no resource ids, empty PUBLIC_URL, logs on", () => {
+  it("keeps the deployed config deploy-button friendly: no secrets list, no resource ids, no blank var, logs on", () => {
     const prod = readJsonc("wrangler.jsonc") as Record<string, any>;
     expect(prod).not.toHaveProperty("secrets");
     for (const db of prod.d1_databases) expect(db).not.toHaveProperty("database_id");
     for (const kv of prod.kv_namespaces) expect(kv).not.toHaveProperty("id");
-    expect(prod.vars.PUBLIC_URL).toBe("");
+    // The Deploy screen makes every var a required field: a blank one would block a first deploy.
+    expect(Object.entries(prod.vars as Record<string, string>).filter(([, v]) => v.trim() === "").map(([k]) => k)).toEqual([]);
+    for (const k of OPTIONAL_VARS) expect(prod.vars, k).not.toHaveProperty(k);
     expect(prod.observability.enabled).toBe(true);
   });
 
-  it("declares the Railgun routing vars in both configs (values are the operator's)", () => {
+  it("declares the routing tuning vars in both configs, and binds the routing destinations only in tests", () => {
     const prod = readJsonc("wrangler.jsonc") as { vars: Record<string, string> };
     const test = readJsonc("test/wrangler.test.jsonc") as { vars: Record<string, string> };
-    for (const k of ["RAILGUN_0ZK_ADDRESS", "RAILGUN_GOLDEN_OK", "RAILGUN_GOLDEN_OK_CHAINS", "XMR_ADDRESS", "TROCADOR_LIVE_OK", "TROCADOR_MIN_KYC", "ROUTE_MIN_BATCH_USD", "ROUTE_DELAY_MIN_H", "ROUTE_DELAY_MAX_H", "HOT_CAP_USD"]) {
+    for (const k of ["TROCADOR_MIN_KYC", "ROUTE_MIN_BATCH_USD", "ROUTE_DELAY_MIN_H", "ROUTE_DELAY_MAX_H", "HOT_CAP_USD"]) {
       expect(Object.keys(prod.vars), k).toContain(k);
       expect(Object.keys(test.vars), k).toContain(k);
+    }
+    for (const k of ["RAILGUN_0ZK_ADDRESS", "RAILGUN_GOLDEN_OK", "RAILGUN_GOLDEN_OK_CHAINS", "XMR_ADDRESS", "TROCADOR_LIVE_OK"]) {
+      expect(Object.keys(prod.vars), k).not.toContain(k);
+      expect(test.vars[k], k).toBe("");
     }
   });
 

@@ -19,38 +19,8 @@
   },
   "cloudflare": {
     "bindings": {
-      "MASTER_SEED": {
-        "description": "Leave blank unless you use routed mode (EVM, Tron, Solana). See the docs."
-      },
-      "PUBLIC_URL": {
-        "description": "Leave blank. Set automatically the first time you open your gateway."
-      },
       "ENABLED_ASSETS": {
         "description": "Leave as is. You choose this in the setup wizard."
-      },
-      "MERCHANT_NAME": {
-        "description": "Leave as is. You choose this in the setup wizard."
-      },
-      "WEBHOOK_URL": {
-        "description": "Leave as is. You choose this in the setup wizard."
-      },
-      "DOGE_BLOCKBOOK_URL": {
-        "description": "Leave as is. You choose this in the setup wizard."
-      },
-      "RAILGUN_0ZK_ADDRESS": {
-        "description": "Leave as is unless you use privacy routing. See the docs."
-      },
-      "RAILGUN_GOLDEN_OK": {
-        "description": "Leave as is unless you use privacy routing. See the docs."
-      },
-      "RAILGUN_GOLDEN_OK_CHAINS": {
-        "description": "Leave as is unless you use privacy routing. See the docs."
-      },
-      "XMR_ADDRESS": {
-        "description": "Leave as is unless you use privacy routing. See the docs."
-      },
-      "TROCADOR_LIVE_OK": {
-        "description": "Leave as is unless you use privacy routing. See the docs."
       },
       "TROCADOR_MIN_KYC": {
         "description": "Leave as is unless you use privacy routing. See the docs."

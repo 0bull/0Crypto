@@ -23,27 +23,14 @@
   "assets": { "directory": "public", "binding": "ASSETS", "run_worker_first": ["/", "/healthz", "/admin", "/admin/*", "/api/*", "/pos", "/pos/*", "/i/*", "/l/*"] },
   // Plain settings (not secrets). Optional secrets (MASTER_SEED for routed mode, API keys, RPC URLs, NWC_URI...) are set with
   // `wrangler secret put`; see .dev.vars.example for the full list and docs/deploy.md for the runbook. Test copy: test/wrangler.test.jsonc.
+  // Only settings with a default live here: the Deploy to Cloudflare screen turns every var into a required field.
+  // Everything else is optional and unset by default: the admin Settings page stores shop settings (name, coins,
+  // webhook URL, wallets) in D1, PUBLIC_URL is set by the first claim, and privacy routing destinations
+  // (RAILGUN_0ZK_ADDRESS, RAILGUN_GOLDEN_OK, RAILGUN_GOLDEN_OK_CHAINS, XMR_ADDRESS, TROCADOR_LIVE_OK) are added here
+  // by the operator who turns routing on (see .dev.vars.example and the privacy routing docs).
   "vars": {
-    // Public base URL of this Worker. Empty: set automatically by the first claim.
-    "PUBLIC_URL": "",
     // Comma-separated asset ids offered at checkout, e.g. btc:btc,ltc:ltc,base:usdc,ln:btc (see .dev.vars.example).
     "ENABLED_ASSETS": "btc:btc,ltc:ltc",
-    // Shown on checkout pages. Empty = none.
-    "MERCHANT_NAME": "",
-    // Your server's endpoint for signed webhooks. Empty = no webhooks.
-    "WEBHOOK_URL": "",
-    // Blockbook endpoint, required to enable Dogecoin. Empty = Dogecoin disabled.
-    "DOGE_BLOCKBOOK_URL": "",
-    // Privacy routing: your Railgun 0zk... address, where EVM funds are shielded. Empty = no EVM routing.
-    "RAILGUN_0ZK_ADDRESS": "",
-    // Railgun master switch: "1" only after the live spike in docs/railgun-spike.md. Empty = shielding refused.
-    "RAILGUN_GOLDEN_OK": "",
-    // EVM chains whose own Railgun spike passed, comma-separated (eth,base,arb,polygon,bsc). Shielding happens only there.
-    "RAILGUN_GOLDEN_OK_CHAINS": "",
-    // Privacy routing: your Monero address (4... or 8...) where Trocador swaps are paid. Empty = no swaps.
-    "XMR_ADDRESS": "",
-    // Trocador master switch: "1" only after the live spike in docs/trocador-spike.md. Empty = trades refused.
-    "TROCADOR_LIVE_OK": "",
     // Worst Trocador provider KYC rating accepted, A (no KYC) to D (may hold funds).
     "TROCADOR_MIN_KYC": "A",
     // Minimum batch worth, in USD, before routing schedules a batch.

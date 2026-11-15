@@ -1,6 +1,6 @@
 # Copy to .dev.vars for `npm run dev`. Never commit .dev.vars.
-# --- secrets: none are required. The gateway generates its own session and webhook keys and prints a setup code in the Worker logs ---
-MASTER_SEED=  # leave blank unless you use routed mode (EVM, Tron, Solana); see docs
+# --- secrets: none are required, so every line here is commented out (the Deploy button asks for each uncommented one). The gateway generates its own session and webhook keys and prints a setup code in the Worker logs ---
+# MASTER_SEED=  # only for routed mode (EVM, Tron, Solana): set it with `npm run setup`; see docs
 # SESSION_SECRET=  # optional: replaces the Worker-generated session key (signs admin session cookies)
 # WEBHOOK_SECRET=whsec_  # optional: replaces the Worker-generated webhook signing key
 # --- deposit addresses: watch mode (default) needs an xpub per chain ---
@@ -35,7 +35,8 @@ MASTER_SEED=  # leave blank unless you use routed mode (EVM, Tron, Solana); see 
 # DOGE_BLOCKBOOK_URL=  # Blockbook endpoint, required to enable Dogecoin
 # DOGE_API_KEY=  # API key for the Blockbook endpoint, if your endpoint requires one
 # COINGECKO_KEY=  # optional CoinGecko key, used for prices Kraken lacks
-# --- settings (vars in wrangler.jsonc; override here for local dev) ---
+# --- settings (optional; most are also editable on the admin Settings page) ---
+# PUBLIC_URL=http://localhost:8787  # public base URL; unset, the first claim records the address you opened
 # WEBHOOK_URL=https://merchant.example/webhooks/0crypto  # where invoice events are POSTed; unset means no webhooks
 # MERCHANT_NAME=My Shop  # shown on checkout pages
 # SUCCESS_URL_HOSTS=shop.example.com  # comma-separated hostnames an invoice success_url may point to (also editable in admin settings)

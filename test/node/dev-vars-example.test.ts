@@ -64,11 +64,11 @@ describe(".dev.vars.example", () => {
     expect(undocumented).toEqual([]);
   });
 
-  it("leaves MASTER_SEED as the only uncommented entry, with an empty value", () => {
+  it("leaves every entry commented out (the Deploy button makes each uncommented one a required field)", () => {
     const active = readFileSync(".dev.vars.example", "utf8")
       .split("\n")
       .filter((l) => /^[A-Z][A-Z0-9_]*=/.test(l));
-    expect(active.map((l) => l.replace(/\s+#.*$/, ""))).toEqual(["MASTER_SEED="]);
+    expect(active).toEqual([]);
   });
 
   it("describes every Deploy button binding, and each one is a var or an example entry", () => {
