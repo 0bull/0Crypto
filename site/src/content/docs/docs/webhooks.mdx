@@ -5,7 +5,7 @@ description: Have 0Crypto tell your website when a payment arrives, and check th
 
 import { Steps } from '@astrojs/starlight/components';
 
-A **webhook** is a message 0Crypto sends to your website when something happens to an invoice, for example when it is paid. Your shop can use it to mark an order as paid. If you use the [WooCommerce plugin](/docs/sell-online/woocommerce/), it does this for you and you only need the address and the secret below.
+A **webhook** is a message 0Crypto sends to your website when something happens to an invoice, for example when it is paid. Your shop can use it to mark an order as paid. If you use the [WooCommerce plugin](./sell-online/woocommerce.mdx), it does this for you and you only need the address and the secret below.
 
 ## What you need from 0Crypto
 
@@ -43,7 +43,7 @@ Every message says what happened and carries the invoice. The main events are:
 | `invoice.partially_paid` | The customer paid too little |
 | `invoice.late_payment` | A payment arrived after the invoice expired |
 | `invoice.expired` | The invoice ran out of time unpaid |
-| `subscription.invoice_created` | A [recurring invoice](/docs/recurring/) was created |
+| `subscription.invoice_created` | A [recurring invoice](./recurring.mdx) was created |
 | `refund.approved` | You approved a refund. It names the refund, the payment, the invoice, the coin, the amount and the customer's address |
 | `webhook.test` | The test message from **Send test event**. It is not stored |
 
@@ -53,7 +53,7 @@ If your website is down or answers with anything other than a success status, 0C
 
 ## Check that a message is real
 
-Every message carries a header called `0Crypto-Signature`. Your website recomputes the signature from the raw message body and the webhook secret, and rejects the message if they differ or if the time in the header is more than five minutes off. The exact recipe, with code, is on the [API page](/docs/sell-online/api/#verify-a-webhook).
+Every message carries a header called `0Crypto-Signature`. Your website recomputes the signature from the raw message body and the webhook secret, and rejects the message if they differ or if the time in the header is more than five minutes off. The exact recipe, with code, is on the [API page](./sell-online/api.mdx#verify-a-webhook).
 
 ## Change the secret
 

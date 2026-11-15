@@ -23,7 +23,7 @@ A **subscription** creates a normal invoice every week, month or year. 0Crypto n
 
 ## Get the invoice to your customer
 
-Each period, 0Crypto sends a `subscription.invoice_created` [webhook](/docs/webhooks/) that includes a `checkout_url`. Your website (or an automation tool) should email that address to the customer. Without a webhook URL, nobody tells your customer an invoice is waiting, so set one first. Events made while no URL was saved are not sent later.
+Each period, 0Crypto sends a `subscription.invoice_created` [webhook](./webhooks.mdx) that includes a `checkout_url`. Your website (or an automation tool) should email that address to the customer. Without a webhook URL, nobody tells your customer an invoice is waiting, so set one first. Events made while no URL was saved are not sent later.
 
 ## When invoices are made
 

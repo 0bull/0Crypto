@@ -11,7 +11,7 @@ The code is printed in your Worker's logs, not shown on the page.
 2. Open the Cloudflare dashboard, go to Workers & Pages, open **0crypto** (or the name you gave your Worker), then the **Observability** tab, and look for the new line that starts `0crypto setup code:`.
 3. If nothing appears, wait a moment and refresh the Observability view, and check that you opened the right Worker in the right Cloudflare account.
 
-A code is 6 words and is valid for 60 minutes. You can print a new one at most once every 2 minutes. Up to 3 live codes exist at a time, and printing a fourth cancels the oldest. After 5 wrong tries from your address in 10 minutes the page says "Too many wrong codes. Wait 10 minutes and try again.", so wait and try again. Read more on [Find your setup code](/docs/setup-code/).
+A code is 6 words and is valid for 60 minutes. You can print a new one at most once every 2 minutes. Up to 3 live codes exist at a time, and printing a fourth cancels the oldest. After 5 wrong tries from your address in 10 minutes the page says "Too many wrong codes. Wait 10 minutes and try again.", so wait and try again. Read more on [Find your setup code](./setup-code.mdx).
 
 ## My browser doesn't offer a passkey
 
@@ -19,19 +19,19 @@ A code is 6 words and is valid for 60 minutes. You can print a new one at most o
 - Use an up-to-date browser (Chrome, Safari, Edge or Firefox) on a device with a screen lock, Face ID, Touch ID, Windows Hello, or a security key.
 - Turn off a private window or a browser extension that blocks passkeys, then try again. Some password managers take over the passkey prompt. Choose "this device" or "security key" there if offered.
 - Passkey steps need JavaScript. If a page says an action needs JavaScript, enable it for your gateway.
-- If you changed the address of your gateway since you made the passkey, use **Lost your passkey or moved to a new domain?** on the sign-in page. See [Use your own domain](/docs/custom-domain/).
+- If you changed the address of your gateway since you made the passkey, use **Lost your passkey or moved to a new domain?** on the sign-in page. See [Use your own domain](./custom-domain.mdx).
 
 ## A coin is greyed out
 
 A coin is unavailable until what it needs is in place.
 
 - **Bitcoin, Litecoin, Dogecoin:** paste a valid public key in the Coins step or in Settings. Dogecoin also needs a Blockbook address.
-- **Ethereum chains, Tron, Solana:** these need [routed mode](/docs/advanced/routed-mode/) and the settings listed in [Ethereum, Tron and Solana](/docs/advanced/evm-tron-solana/). An Ethereum chain also needs its factory deployed. Open the Wallets page: it says what is missing for each chain.
-- **Lightning:** needs a receive-only connection. See [Accept Lightning](/docs/advanced/lightning/).
+- **Ethereum chains, Tron, Solana:** these need [routed mode](./advanced/routed-mode.mdx) and the settings listed in [Ethereum, Tron and Solana](./advanced/evm-tron-solana.mdx). An Ethereum chain also needs its factory deployed. Open the Wallets page: it says what is missing for each chain.
+- **Lightning:** needs a receive-only connection. See [Accept Lightning](./advanced/lightning.mdx).
 
 ## The first address doesn't match my wallet
 
-Stop and do not accept payments yet. You may have copied the key from the wrong account or the wrong address type. Copy it again. See [Add your wallet](/docs/wallet/).
+Stop and do not accept payments yet. You may have copied the key from the wrong account or the wrong address type. Copy it again. See [Add your wallet](./wallet.mdx).
 
 ## Payments don't show up
 
@@ -49,7 +49,7 @@ Stop and do not accept payments yet. You may have copied the key from the wrong 
 
 ## Sweeps are stuck
 
-An alert on your Overview names the reason. The most common one is `sweep.insufficient_gas`: a hot wallet is out of fuel. Top it up. See [Ethereum, Tron and Solana](/docs/advanced/evm-tron-solana/).
+An alert on your Overview names the reason. The most common one is `sweep.insufficient_gas`: a hot wallet is out of fuel. Top it up. See [Ethereum, Tron and Solana](./advanced/evm-tron-solana.mdx).
 
 ## I still need help
 

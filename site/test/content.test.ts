@@ -1,5 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { routeOf } from "../src/mdx-links.ts";
 
 export const PAGES: { slug: string; task: boolean }[] = [
   { slug: "index", task: false },
@@ -193,3 +195,24 @@ describe("fix round 1 pins", () => {
     expect(s).toContain("about a minute at first");
   });
 });
+
+describe("links between docs pages work on GitHub and on the site", () => {
+  const all = (dir: URL): URL[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? all(new URL(`${e.name}/`, dir)) : e.name.endsWith(".mdx") ? [new URL(e.name, dir)] : []));
+  const files = all(DIR);
+  it("no page links with a site path (/docs/...), which 404s on GitHub", () => {
+    for (const f of files) expect(readFileSync(f, "utf8"), f.pathname).not.toMatch(/\]\(\/docs\//);
+  });
+  it("every relative .mdx link points at a file that exists", () => {
+    for (const f of files)
+      for (const m of readFileSync(f, "utf8").matchAll(/\]\((\.{1,2}\/[^)#\s]*\.mdx)(#[^)\s]*)?\)/g)) expect(existsSync(new URL(m[1]!, f)), `${f.pathname} -> ${m[1]}`).toBe(true);
+  });
+  it("routeOf maps a file link to its route, keeping the anchor", () => {
+    const from = fileURLToPath(new URL("advanced/privacy-routing.mdx", DIR));
+    expect(routeOf(from, "./routed-mode.mdx")).toBe("/docs/advanced/routed-mode/");
+    expect(routeOf(from, "../security.mdx#backups")).toBe("/docs/security/#backups");
+    expect(routeOf(from, "../index.mdx")).toBe("/docs/");
+    expect(routeOf(from, "https://example.com/a.mdx")).toBeNull();
+  });
+});
+

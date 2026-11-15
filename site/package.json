@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm run trail && astro dev",
-    "build": "npm run trail && astro build && node scripts/csp.ts dist",
+    "build": "npm run trail && astro build && node scripts/mdx-links.ts dist && node scripts/csp.ts dist",
     "trail": "node scripts/build-trail.ts",
     "test": "vitest run",
     "preview": "npm run build && wrangler dev",

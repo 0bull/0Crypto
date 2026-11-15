@@ -5,9 +5,9 @@ description: Move swept funds on to your own private addresses so customers cann
 
 import { Steps } from '@astrojs/starlight/components';
 
-**Privacy routing** is optional and needs [routed mode](/docs/advanced/routed-mode/). It moves funds out of the hot wallets in batches, after a random delay, to private addresses that you own. A customer who follows their payment on a block explorer then loses the trail at the hot wallet.
+**Privacy routing** is optional and needs [routed mode](./routed-mode.mdx). It moves funds out of the hot wallets in batches, after a random delay, to private addresses that you own. A customer who follows their payment on a block explorer then loses the trail at the hot wallet.
 
-It reduces what a customer can learn. It does not remove it. See [Security](/docs/security/) for the plain facts.
+It reduces what a customer can learn. It does not remove it. See [Security](../security.mdx) for the plain facts.
 
 ## Where the money goes
 
@@ -21,7 +21,7 @@ The destinations are only read from settings in your copy's `wrangler.jsonc`, ne
 
 - Railgun takes **0.25%** of every shield, plus network gas.
 - Trocador swaps have a **spread** built into the quoted amount. The **Privacy routing** page shows it for each step.
-- Hot wallets must hold enough gas for routing (see [Ethereum, Tron and Solana](/docs/advanced/evm-tron-solana/)).
+- Hot wallets must hold enough gas for routing (see [Ethereum, Tron and Solana](./evm-tron-solana.mdx)).
 
 ## Set it up
 
@@ -53,7 +53,7 @@ Your Overview shows alerts. The ones to know are `routing.stuck` (something need
 
 ## Refunds
 
-A confirmed payment can be refunded from its invoice page, with the **Refund…** link next to the payment. Enter the customer's address and an amount up to what arrived, then press **Approve and send refund** and confirm with your passkey. The gateway tries to send it at once. At most one refund goes out per hour; a second one in the same hour is refused with "Only one refund per hour: try again later." Each approved refund raises an alert ("A refund was approved") and sends a `refund.approved` [webhook](/docs/webhooks/), so nothing leaves quietly. A refund is refused while routing is running ("routing is running, try again in a few minutes"). If a refund was approved but not sent, or the network did not take it, its row shows the state (for example "approved, not sent" or "consumed, unsent") and offers **Re-approve and send** or **Cancel refund**. Where the transaction was recorded but not accepted, check a block explorer before choosing. **A refund links your hot wallet to that customer on the blockchain.** Tron refunds are not supported yet, so refund those by hand.
+A confirmed payment can be refunded from its invoice page, with the **Refund…** link next to the payment. Enter the customer's address and an amount up to what arrived, then press **Approve and send refund** and confirm with your passkey. The gateway tries to send it at once. At most one refund goes out per hour; a second one in the same hour is refused with "Only one refund per hour: try again later." Each approved refund raises an alert ("A refund was approved") and sends a `refund.approved` [webhook](../webhooks.mdx), so nothing leaves quietly. A refund is refused while routing is running ("routing is running, try again in a few minutes"). If a refund was approved but not sent, or the network did not take it, its row shows the state (for example "approved, not sent" or "consumed, unsent") and offers **Re-approve and send** or **Cancel refund**. Where the transaction was recorded but not accepted, check a block explorer before choosing. **A refund links your hot wallet to that customer on the blockchain.** Tron refunds are not supported yet, so refund those by hand.
 
 :::tip[You should now see]
 The Privacy routing page lists your assets, each either routing or with a reason it is waiting (for example a live gate that is still off). After your live checks, a small test batch shows as completed.

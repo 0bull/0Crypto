@@ -32,6 +32,12 @@ describe("dist scaffold", () => {
   it("has a 404 page", () => {
     expect(readDist("404.html")).toContain("<html");
   });
+  it("turns relative .mdx links into site routes", () => {
+    const html = readDist("docs/advanced/privacy-routing/index.html");
+    expect(html).toContain('href="/docs/advanced/routed-mode/"');
+    expect(html).toContain('href="/docs/security/"');
+    expect(html).not.toMatch(/href="[^"]*\.mdx/);
+  });
   it("has a landing page", () => {
     expect(readDist("index.html")).toContain("<html");
   });
